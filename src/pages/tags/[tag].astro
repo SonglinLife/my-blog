@@ -3,27 +3,45 @@ import BaseHead from '../../components/BaseHead.astro';
 import Footer from '../../components/Footer.astro';
 import FormattedDate from '../../components/FormattedDate.astro';
 import Header from '../../components/Header.astro';
-import { SITE_DESCRIPTION, SITE_TITLE } from '../../consts';
+import { SITE_TITLE } from '../../consts';
 import { getPublishedPosts } from '../../lib/posts';
 import { getReadingTime } from '../../lib/reading-time';
 
-const posts = await getPublishedPosts();
+export async function getStaticPaths() {
+	const posts = await getPublishedPosts();
+	const tags = new Set<string>();
+	posts.forEach(post => {
+		post.data.tags.filter(t => t !== 'release').forEach(t => tags.add(t));
+	});
+	return [...tags].map(tag => ({
+		params: { tag },
+		props: {
+			tag,
+			posts: posts.filter(p => p.data.tags.includes(tag)),
+		},
+	}));
+}
+
+const { tag, posts } = Astro.props;
 ---
 
 <!doctype html>
 <html lang="zh-CN">
 	<head>
-		<BaseHead title={`Blog - ${SITE_TITLE}`} description={SITE_DESCRIPTION} />
+		<BaseHead title={`${tag} - ${SITE_TITLE}`} description={`Posts tagged "${tag}"`} />
 	</head>
 	<body>
 		<Header />
 		<main>
-			<h1>All Posts</h1>
-			{posts.length === 0 && <p class="empty">No posts yet.</p>}
+			<div class="page-header">
+				<a href="/tags/" class="back">&larr; All Tags</a>
+				<h1><span class="label">Tag:</span> {tag}</h1>
+				<p class="count">{posts.length} post{posts.length !== 1 ? 's' : ''}</p>
+			</div>
+
 			<ul class="post-list">
 				{posts.map((post) => {
 					const readingTime = getReadingTime(post.body || '');
-					const tags = post.data.tags.filter(t => t !== 'release');
 					return (
 						<li>
 							<a href={`/blog/${post.id}/`}>
@@ -34,13 +52,6 @@ const posts = await getPublishedPosts();
 								</div>
 								<h3 class="post-title">{post.data.title}</h3>
 								<p class="post-desc">{post.data.description}</p>
-								{tags.length > 0 && (
-									<div class="post-tags">
-										{tags.map(tag => (
-											<span class="tag">{tag}</span>
-										))}
-									</div>
-								)}
 							</a>
 						</li>
 					);
@@ -50,9 +61,26 @@ const posts = await getPublishedPosts();
 		<Footer />
 
 		<style>
+			.page-header {
+				margin-bottom: 2em;
+			}
+			.back {
+				font-size: 0.85rem;
+				color: var(--text-secondary);
+			}
+			.back:hover { color: var(--accent); }
 			h1 {
+				margin: 0.5em 0 0.2em;
 				font-size: 2em;
-				margin-bottom: 1em;
+			}
+			.label {
+				color: var(--text-secondary);
+				font-weight: 400;
+			}
+			.count {
+				color: var(--text-secondary);
+				font-size: 0.9rem;
+				margin: 0;
 			}
 			.post-list {
 				list-style: none;
@@ -85,23 +113,9 @@ const posts = await getPublishedPosts();
 				transition: color 0.2s;
 			}
 			.post-desc {
-				margin: 0 0 0.5em;
+				margin: 0;
 				color: var(--text-secondary);
 				font-size: 0.9rem;
-			}
-			.post-tags {
-				display: flex;
-				gap: 0.4em;
-				flex-wrap: wrap;
-			}
-			.post-tags .tag {
-				font-size: 0.7rem;
-				pointer-events: none;
-			}
-			.empty {
-				text-align: center;
-				color: var(--text-secondary);
-				padding: 3em 0;
 			}
 		</style>
 	</body>

@@ -1,97 +1,218 @@
 ---
-import { Image } from 'astro:assets';
 import BaseHead from '../components/BaseHead.astro';
 import Footer from '../components/Footer.astro';
 import FormattedDate from '../components/FormattedDate.astro';
 import Header from '../components/Header.astro';
 import { SITE_DESCRIPTION, SITE_TITLE } from '../consts';
 import { getPublishedPosts } from '../lib/posts';
+import { getReadingTime } from '../lib/reading-time';
 
 const posts = await getPublishedPosts();
+
+// Collect all tags (excluding "release")
+const allTags = [...new Set(posts.flatMap(p => p.data.tags.filter(t => t !== 'release')))].sort();
 ---
 
 <!doctype html>
 <html lang="zh-CN">
 	<head>
 		<BaseHead title={SITE_TITLE} description={SITE_DESCRIPTION} />
-		<style>
-			main {
-				width: 720px;
-				max-width: calc(100% - 2em);
-				margin: auto;
-				padding: 1em;
-			}
-			ul {
-				list-style-type: none;
-				margin: 0;
-				padding: 0;
-			}
-			ul li {
-				margin-bottom: 1.5rem;
-				padding-bottom: 1.5rem;
-				border-bottom: 1px solid rgb(var(--gray-light));
-			}
-			ul li:last-child {
-				border-bottom: none;
-			}
-			ul li a {
-				text-decoration: none;
-				display: block;
-			}
-			.title {
-				margin: 0 0 0.25em 0;
-				color: rgb(var(--black));
-				line-height: 1.3;
-			}
-			.date {
-				margin: 0;
-				color: rgb(var(--gray));
-				font-size: 0.875rem;
-			}
-			.description {
-				margin: 0.5em 0 0;
-				color: rgb(var(--gray-dark));
-				font-size: 0.9rem;
-			}
-			.tags {
-				margin-top: 0.5em;
-				display: flex;
-				gap: 0.5em;
-				flex-wrap: wrap;
-			}
-			.tag {
-				font-size: 0.75rem;
-				padding: 0.15em 0.5em;
-				border-radius: 4px;
-				background: rgb(var(--gray-light));
-				color: rgb(var(--gray-dark));
-			}
-			ul li a:hover .title {
-				color: rgb(var(--accent));
-			}
-		</style>
 	</head>
 	<body>
 		<Header />
 		<main>
-			{posts.length === 0 && <p>No posts yet. Start writing!</p>}
-			<ul>
-				{posts.map((post) => (
-					<li>
-						<a href={`/blog/${post.id}/`}>
-							<h3 class="title">{post.data.title}</h3>
-							<p class="date"><FormattedDate date={post.data.pubDate} /></p>
-							<p class="description">{post.data.description}</p>
-							<div class="tags">
-								{post.data.tags.filter(t => t !== 'release').map(tag => (
-									<span class="tag">{tag}</span>
-								))}
-							</div>
-						</a>
-					</li>
-				))}
+			<!-- Search -->
+			<div class="search-box">
+				<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+				<input type="text" id="search-input" placeholder="Search posts..." autocomplete="off" />
+			</div>
+
+			<!-- Tag filter -->
+			{allTags.length > 0 && (
+				<div class="tag-filter">
+					<button class="tag active" data-tag="all">All</button>
+					{allTags.map(tag => (
+						<button class="tag" data-tag={tag}>{tag}</button>
+					))}
+				</div>
+			)}
+
+			<!-- Posts -->
+			{posts.length === 0 && <p class="empty">No posts yet. Start writing!</p>}
+			<ul class="post-list">
+				{posts.map((post) => {
+					const readingTime = getReadingTime(post.body || '');
+					const tags = post.data.tags.filter(t => t !== 'release');
+					return (
+						<li class="post-item" data-title={post.data.title.toLowerCase()} data-desc={post.data.description.toLowerCase()} data-tags={tags.join(',')}>
+							<a href={`/blog/${post.id}/`}>
+								<div class="post-meta">
+									<FormattedDate date={post.data.pubDate} />
+									<span class="dot">&middot;</span>
+									<span class="reading-time">{readingTime} min read</span>
+								</div>
+								<h3 class="post-title">{post.data.title}</h3>
+								<p class="post-desc">{post.data.description}</p>
+								{tags.length > 0 && (
+									<div class="post-tags">
+										{tags.map(tag => (
+											<span class="tag">{tag}</span>
+										))}
+									</div>
+								)}
+							</a>
+						</li>
+					);
+				})}
 			</ul>
+			<p class="no-results" style="display:none;">No matching posts found.</p>
 		</main>
 		<Footer />
+
+		<script is:inline>
+			document.addEventListener('DOMContentLoaded', () => {
+				const input = document.getElementById('search-input');
+				const items = document.querySelectorAll('.post-item');
+				const tagBtns = document.querySelectorAll('.tag-filter .tag');
+				const noResults = document.querySelector('.no-results');
+				let activeTag = 'all';
+
+				function filterPosts() {
+					const query = input.value.toLowerCase().trim();
+					let visible = 0;
+					items.forEach(item => {
+						const title = item.getAttribute('data-title');
+						const desc = item.getAttribute('data-desc');
+						const tags = item.getAttribute('data-tags');
+						const matchSearch = !query || title.includes(query) || desc.includes(query);
+						const matchTag = activeTag === 'all' || tags.split(',').includes(activeTag);
+						const show = matchSearch && matchTag;
+						item.style.display = show ? '' : 'none';
+						if (show) visible++;
+					});
+					noResults.style.display = visible === 0 ? '' : 'none';
+				}
+
+				input.addEventListener('input', filterPosts);
+
+				tagBtns.forEach(btn => {
+					btn.addEventListener('click', () => {
+						tagBtns.forEach(b => b.classList.remove('active'));
+						btn.classList.add('active');
+						activeTag = btn.getAttribute('data-tag');
+						filterPosts();
+					});
+				});
+			});
+		</script>
+
+		<style>
+			.search-box {
+				display: flex;
+				align-items: center;
+				gap: 0.5em;
+				padding: 0.6em 1em;
+				border: 1px solid var(--border);
+				border-radius: 12px;
+				margin-bottom: 1.5em;
+				transition: border-color 0.2s;
+				background: var(--bg);
+			}
+			.search-box:focus-within {
+				border-color: var(--accent);
+			}
+			.search-box svg {
+				color: var(--text-secondary);
+				flex-shrink: 0;
+			}
+			#search-input {
+				border: none;
+				outline: none;
+				background: transparent;
+				width: 100%;
+				font-size: 1rem;
+				color: var(--text);
+			}
+			#search-input::placeholder {
+				color: var(--text-secondary);
+			}
+
+			.tag-filter {
+				display: flex;
+				gap: 0.5em;
+				flex-wrap: wrap;
+				margin-bottom: 2em;
+			}
+			.tag-filter .tag {
+				cursor: pointer;
+				border: none;
+				font-family: inherit;
+			}
+			.tag-filter .tag.active {
+				background: var(--accent);
+				color: #fff;
+			}
+
+			.post-list {
+				list-style: none;
+				margin: 0;
+				padding: 0;
+			}
+			.post-item {
+				margin-bottom: 0;
+				border-bottom: 1px solid var(--border);
+			}
+			.post-item:last-child {
+				border-bottom: none;
+			}
+			.post-item a {
+				display: block;
+				padding: 1.25em 0;
+				text-decoration: none;
+				transition: transform 0.15s ease;
+			}
+			.post-item a:hover {
+				text-decoration: none;
+			}
+			.post-item a:hover .post-title {
+				color: var(--accent);
+			}
+			.post-meta {
+				display: flex;
+				align-items: center;
+				gap: 0.4em;
+				font-size: 0.85rem;
+				color: var(--text-secondary);
+				margin-bottom: 0.3em;
+			}
+			.dot { opacity: 0.5; }
+			.post-title {
+				margin: 0 0 0.3em 0;
+				color: rgb(var(--black));
+				font-size: 1.25rem;
+				line-height: 1.4;
+				transition: color 0.2s;
+			}
+			.post-desc {
+				margin: 0 0 0.5em;
+				color: var(--text-secondary);
+				font-size: 0.9rem;
+				line-height: 1.5;
+			}
+			.post-tags {
+				display: flex;
+				gap: 0.4em;
+				flex-wrap: wrap;
+			}
+			.post-tags .tag {
+				font-size: 0.7rem;
+				pointer-events: none;
+			}
+			.no-results, .empty {
+				text-align: center;
+				color: var(--text-secondary);
+				padding: 3em 0;
+			}
+		</style>
 	</body>
 </html>

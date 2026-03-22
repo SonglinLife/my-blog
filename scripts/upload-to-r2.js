@@ -8,18 +8,31 @@
  *   Preferences → Image → Upload Service → Custom Command
  *   Command: node /Users/wu/wsl/my-blog/scripts/upload-to-r2.js
  *
- * Environment variables (set in ~/.zshrc or ~/.bashrc):
- *   R2_ACCOUNT_ID     - Cloudflare account ID
- *   R2_ACCESS_KEY_ID  - R2 API token access key
- *   R2_SECRET_ACCESS_KEY - R2 API token secret key
- *   R2_BUCKET_NAME    - R2 bucket name
- *   R2_PUBLIC_URL     - R2 public access URL (e.g., https://img.yourdomain.com)
+ * Reads R2 credentials from .env in project root.
  */
 
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { readFileSync } from 'node:fs';
-import { basename, extname } from 'node:path';
+import { extname } from 'node:path';
 import { randomUUID } from 'node:crypto';
+import { fileURLToPath } from 'node:url';
+import { dirname, resolve } from 'node:path';
+
+// Load .env from project root
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const envPath = resolve(__dirname, '..', '.env');
+try {
+	const envContent = readFileSync(envPath, 'utf-8');
+	for (const line of envContent.split('\n')) {
+		const trimmed = line.trim();
+		if (!trimmed || trimmed.startsWith('#')) continue;
+		const eqIndex = trimmed.indexOf('=');
+		if (eqIndex === -1) continue;
+		const key = trimmed.slice(0, eqIndex).trim();
+		const value = trimmed.slice(eqIndex + 1).trim();
+		if (!process.env[key]) process.env[key] = value;
+	}
+} catch {}
 
 const {
 	R2_ACCOUNT_ID,
