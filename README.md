@@ -86,7 +86,7 @@ cp .env.example .env
 Preferences → Image → Upload Service → Custom Command:
 
 ```
-node /Users/wu/wsl/my-blog/scripts/upload-to-r2.js
+node <项目根目录>/scripts/upload-to-r2.js
 ```
 
 脚本会从项目根目录的 `.env` 文件读取 R2 凭据，无需额外配置环境变量。
