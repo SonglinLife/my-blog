@@ -22,9 +22,14 @@ const allTags = [...new Set(posts.flatMap(p => p.data.tags.filter(t => t !== 're
 		<Header />
 		<main>
 			<!-- Search -->
-			<div class="search-box">
-				<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-				<input type="text" id="search-input" placeholder="Search posts..." autocomplete="off" />
+			<div class="search-wrapper">
+				<button id="search-toggle" aria-label="Search" title="Search">
+					<svg class="icon-search" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+					<svg class="icon-close" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none;"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+				</button>
+				<div class="search-box" style="display:none;">
+					<input type="text" id="search-input" placeholder="Search posts..." autocomplete="off" />
+				</div>
 			</div>
 
 			<!-- Tag filter -->
@@ -71,11 +76,29 @@ const allTags = [...new Set(posts.flatMap(p => p.data.tags.filter(t => t !== 're
 
 		<script is:inline>
 			document.addEventListener('DOMContentLoaded', () => {
+				const toggle = document.getElementById('search-toggle');
+				const searchBox = document.querySelector('.search-box');
 				const input = document.getElementById('search-input');
+				const iconSearch = toggle.querySelector('.icon-search');
+				const iconClose = toggle.querySelector('.icon-close');
 				const items = document.querySelectorAll('.post-item');
 				const tagBtns = document.querySelectorAll('.tag-filter .tag');
 				const noResults = document.querySelector('.no-results');
 				let activeTag = 'all';
+				let searchOpen = false;
+
+				toggle.addEventListener('click', () => {
+					searchOpen = !searchOpen;
+					searchBox.style.display = searchOpen ? 'flex' : 'none';
+					iconSearch.style.display = searchOpen ? 'none' : '';
+					iconClose.style.display = searchOpen ? '' : 'none';
+					if (searchOpen) {
+						input.focus();
+					} else {
+						input.value = '';
+						filterPosts();
+					}
+				});
 
 				function filterPosts() {
 					const query = input.value.toLowerCase().trim();
@@ -107,23 +130,42 @@ const allTags = [...new Set(posts.flatMap(p => p.data.tags.filter(t => t !== 're
 		</script>
 
 		<style>
-			.search-box {
+			.search-wrapper {
 				display: flex;
 				align-items: center;
-				gap: 0.5em;
-				padding: 0.6em 1em;
+				gap: 0.75em;
+				margin-bottom: 1.5em;
+			}
+			#search-toggle {
+				background: none;
+				border: 1px solid var(--border);
+				border-radius: 8px;
+				padding: 0.45em;
+				cursor: pointer;
+				color: var(--text-secondary);
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				transition: all 0.2s ease;
+				flex-shrink: 0;
+			}
+			#search-toggle:hover {
+				color: var(--accent);
+				border-color: var(--accent);
+			}
+			.search-box {
+				flex: 1;
+				display: flex;
+				align-items: center;
+				padding: 0.5em 1em;
 				border: 1px solid var(--border);
 				border-radius: 12px;
-				margin-bottom: 1.5em;
-				transition: border-color 0.2s;
 				background: var(--bg);
+				transition: border-color 0.2s;
+				animation: slideIn 0.2s ease;
 			}
 			.search-box:focus-within {
 				border-color: var(--accent);
-			}
-			.search-box svg {
-				color: var(--text-secondary);
-				flex-shrink: 0;
 			}
 			#search-input {
 				border: none;
@@ -135,6 +177,10 @@ const allTags = [...new Set(posts.flatMap(p => p.data.tags.filter(t => t !== 're
 			}
 			#search-input::placeholder {
 				color: var(--text-secondary);
+			}
+			@keyframes slideIn {
+				from { opacity: 0; transform: translateX(-10px); }
+				to { opacity: 1; transform: translateX(0); }
 			}
 
 			.tag-filter {
