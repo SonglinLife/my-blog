@@ -1,89 +1,24 @@
 ---
-import BaseHead from '../../components/BaseHead.astro';
-import Footer from '../../components/Footer.astro';
-import Header from '../../components/Header.astro';
-import { SITE_TITLE } from '../../consts';
-import { getPublishedPosts } from '../../lib/posts';
+import { getCollection } from "astro:content";
+import Main from "@/layouts/Main.astro";
+import Layout from "@/layouts/Layout.astro";
+import Tag from "@/components/Tag.astro";
+import Header from "@/components/Header.astro";
+import Footer from "@/components/Footer.astro";
+import getUniqueTags from "@/utils/getUniqueTags";
+import { SITE } from "@/config";
 
-const posts = await getPublishedPosts();
+const posts = await getCollection("blog");
 
-// Build tag → post count map
-const tagMap = new Map<string, number>();
-posts.forEach(post => {
-	post.data.tags.filter(t => t !== 'release').forEach(tag => {
-		tagMap.set(tag, (tagMap.get(tag) || 0) + 1);
-	});
-});
-const sortedTags = [...tagMap.entries()].sort((a, b) => b[1] - a[1]);
+let tags = getUniqueTags(posts);
 ---
 
-<!doctype html>
-<html lang="zh-CN">
-	<head>
-		<BaseHead title={`Tags - ${SITE_TITLE}`} description="Browse all tags" />
-	</head>
-	<body>
-		<Header />
-		<main>
-			<h1>Tags</h1>
-			{sortedTags.length === 0 && <p class="empty">No tags yet.</p>}
-			<div class="tag-cloud">
-				{sortedTags.map(([tag, count]) => (
-					<a href={`/tags/${tag}/`} class="tag-item">
-						<span class="tag-name">{tag}</span>
-						<span class="tag-count">{count}</span>
-					</a>
-				))}
-			</div>
-		</main>
-		<Footer />
-
-		<style>
-			h1 {
-				margin-bottom: 1em;
-				font-size: 2em;
-			}
-			.tag-cloud {
-				display: flex;
-				flex-wrap: wrap;
-				gap: 0.75em;
-			}
-			.tag-item {
-				display: inline-flex;
-				align-items: center;
-				gap: 0.4em;
-				padding: 0.5em 1em;
-				border-radius: 999px;
-				background: var(--bg-secondary);
-				border: 1px solid var(--border);
-				color: var(--text);
-				text-decoration: none;
-				font-size: 0.95rem;
-				transition: all 0.2s ease;
-			}
-			.tag-item:hover {
-				background: var(--accent);
-				color: #fff;
-				border-color: var(--accent);
-				text-decoration: none;
-			}
-			.tag-item:hover .tag-count {
-				background: rgba(255,255,255,0.25);
-				color: #fff;
-			}
-			.tag-count {
-				font-size: 0.75rem;
-				padding: 0.1em 0.5em;
-				border-radius: 999px;
-				background: var(--border);
-				color: var(--text-secondary);
-				transition: all 0.2s ease;
-			}
-			.empty {
-				color: var(--text-secondary);
-				text-align: center;
-				padding: 3em 0;
-			}
-		</style>
-	</body>
-</html>
+<Layout title={`Tags | ${SITE.title}`}>
+  <Header />
+  <Main pageTitle="Tags" pageDesc="All the tags used in posts.">
+    <ul class="flex flex-wrap gap-6">
+      {tags.map(({ tag, tagName }) => <Tag {tag} {tagName} />)}
+    </ul>
+  </Main>
+  <Footer />
+</Layout>

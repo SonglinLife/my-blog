@@ -1,193 +1,70 @@
-:root {
-	--accent: #4f6df5;
-	--accent-dark: #3451d1;
-	--accent-light: #6b85f7;
-	--black: 15, 18, 25;
-	--gray: 96, 115, 159;
-	--gray-light: 229, 233, 240;
-	--gray-dark: 34, 41, 57;
-	--gray-gradient: rgba(var(--gray-light), 50%), #fff;
-	--bg: #fff;
-	--bg-secondary: #f8f9fc;
-	--text: rgb(var(--gray-dark));
-	--text-secondary: rgb(var(--gray));
-	--border: rgb(var(--gray-light));
-	--box-shadow:
-		0 2px 6px rgba(var(--gray), 15%), 0 8px 24px rgba(var(--gray), 20%);
+@import "tailwindcss";
+@import "./typography.css";
+
+@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
+
+:root,
+html[data-theme="light"] {
+  --background: #fdfdfd;
+  --foreground: #282728;
+  --accent: #006cac;
+  --muted: #e6e6e6;
+  --border: #ece9e9;
 }
 
-[data-theme="dark"] {
-	--accent: #6b85f7;
-	--accent-dark: #4f6df5;
-	--accent-light: #8da0f9;
-	--black: 230, 230, 230;
-	--gray: 140, 150, 170;
-	--gray-light: 45, 50, 60;
-	--gray-dark: 220, 220, 230;
-	--gray-gradient: rgba(var(--gray-light), 50%), #1a1b26;
-	--bg: #1a1b26;
-	--bg-secondary: #222336;
-	--text: rgb(var(--gray-dark));
-	--text-secondary: rgb(var(--gray));
-	--border: rgb(var(--gray-light));
-	--box-shadow:
-		0 2px 6px rgba(0, 0, 0, 30%), 0 8px 24px rgba(0, 0, 0, 40%);
+html[data-theme="dark"] {
+  --background: #212737;
+  --foreground: #eaedf3;
+  --accent: #ff6b01;
+  --muted: #343f60;
+  --border: #ab4b08;
 }
 
-@font-face {
-	font-family: "Atkinson";
-	src: url("/fonts/atkinson-regular.woff") format("woff");
-	font-weight: 400;
-	font-style: normal;
-	font-display: swap;
-}
-@font-face {
-	font-family: "Atkinson";
-	src: url("/fonts/atkinson-bold.woff") format("woff");
-	font-weight: 700;
-	font-style: normal;
-	font-display: swap;
+@theme inline {
+  --font-app: system-ui, -apple-system, sans-serif;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-accent: var(--accent);
+  --color-muted: var(--muted);
+  --color-border: var(--border);
 }
 
-*, *::before, *::after {
-	box-sizing: border-box;
+@layer base {
+  * {
+    @apply border-border outline-accent/75;
+    scrollbar-width: auto;
+    scrollbar-color: var(--color-muted) transparent;
+  }
+  html {
+    @apply overflow-y-scroll scroll-smooth;
+  }
+  body {
+    @apply flex min-h-svh flex-col bg-background font-app text-foreground selection:bg-accent/75 selection:text-background;
+  }
+  a,
+  button {
+    @apply outline-offset-1 outline-accent focus-visible:no-underline focus-visible:outline-2 focus-visible:outline-dashed;
+  }
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
 }
 
-body {
-	font-family: "Atkinson", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-	margin: 0;
-	padding: 0;
-	text-align: left;
-	background: var(--bg);
-	word-wrap: break-word;
-	overflow-wrap: break-word;
-	color: var(--text);
-	font-size: 18px;
-	line-height: 1.75;
-	transition: background 0.3s ease, color 0.3s ease;
+@utility max-w-app {
+  @apply max-w-3xl;
 }
 
-main {
-	width: 780px;
-	max-width: calc(100% - 2em);
-	margin: auto;
-	padding: 2em 1em;
+@utility app-layout {
+  @apply mx-auto w-full max-w-app px-4;
 }
 
-h1, h2, h3, h4, h5, h6 {
-	margin: 0 0 0.5rem 0;
-	color: rgb(var(--black));
-	line-height: 1.3;
-}
-h1 { font-size: 2.5em; }
-h2 { font-size: 2em; }
-h3 { font-size: 1.5em; }
-h4 { font-size: 1.25em; }
-h5 { font-size: 1.1em; }
-
-strong, b { font-weight: 700; }
-
-a {
-	color: var(--accent);
-	text-decoration: none;
-	transition: color 0.2s ease;
-}
-a:hover {
-	color: var(--accent-dark);
-	text-decoration: underline;
+.active-nav {
+  @apply underline decoration-wavy decoration-2 underline-offset-8;
 }
 
-p { margin-bottom: 1em; }
-.prose p { margin-bottom: 1.5em; }
-
-textarea, input {
-	font-size: 16px;
-	font-family: inherit;
-}
-
-table {
-	width: 100%;
-	border-collapse: collapse;
-}
-table th, table td {
-	padding: 0.5em 0.75em;
-	border-bottom: 1px solid var(--border);
-}
-
-img {
-	max-width: 100%;
-	height: auto;
-	border-radius: 8px;
-}
-
-code {
-	padding: 2px 6px;
-	background-color: rgb(var(--gray-light));
-	border-radius: 4px;
-	font-size: 0.9em;
-}
-
-pre {
-	padding: 1.5em;
-	border-radius: 8px;
-	overflow-x: auto;
-}
-pre > code {
-	all: unset;
-}
-
-blockquote {
-	border-left: 4px solid var(--accent);
-	padding: 0 0 0 1.25em;
-	margin: 1em 0;
-	color: var(--text-secondary);
-}
-
-hr {
-	border: none;
-	border-top: 1px solid var(--border);
-	margin: 2em 0;
-}
-
-@media (max-width: 720px) {
-	body { font-size: 16px; }
-	main { padding: 1em; }
-	h1 { font-size: 2em; }
-	h2 { font-size: 1.5em; }
-}
-
-.sr-only {
-	border: 0;
-	padding: 0;
-	margin: 0;
-	position: absolute !important;
-	height: 1px;
-	width: 1px;
-	overflow: hidden;
-	clip: rect(1px, 1px, 1px, 1px);
-	clip-path: inset(50%);
-	white-space: nowrap;
-}
-
-/* Tag styles (shared) */
-.tag {
-	display: inline-block;
-	font-size: 0.75rem;
-	padding: 0.2em 0.6em;
-	border-radius: 999px;
-	background: rgb(var(--gray-light));
-	color: var(--text-secondary);
-	transition: all 0.2s ease;
-	text-decoration: none;
-}
-.tag:hover {
-	background: var(--accent);
-	color: #fff;
-	text-decoration: none;
-}
-
-/* Reading time */
-.reading-time {
-	color: var(--text-secondary);
-	font-size: 0.85rem;
+/* Source: https://piccalil.li/blog/a-more-modern-css-reset/ */
+/* Anything that has been anchored to should have extra scroll margin */
+:target {
+  scroll-margin-block: 1rem;
 }

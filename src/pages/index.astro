@@ -1,264 +1,121 @@
 ---
-import BaseHead from '../components/BaseHead.astro';
-import Footer from '../components/Footer.astro';
-import FormattedDate from '../components/FormattedDate.astro';
-import Header from '../components/Header.astro';
-import { SITE_DESCRIPTION, SITE_TITLE } from '../consts';
-import { getPublishedPosts } from '../lib/posts';
-import { getReadingTime } from '../lib/reading-time';
+import { getCollection } from "astro:content";
+import Layout from "@/layouts/Layout.astro";
+import Header from "@/components/Header.astro";
+import Footer from "@/components/Footer.astro";
+import Socials from "@/components/Socials.astro";
+import LinkButton from "@/components/LinkButton.astro";
+import Card from "@/components/Card.astro";
+import getSortedPosts from "@/utils/getSortedPosts";
+import IconRss from "@/assets/icons/IconRss.svg";
+import IconArrowRight from "@/assets/icons/IconArrowRight.svg";
+import { SITE } from "@/config";
+import { SOCIALS } from "@/constants";
 
-const posts = await getPublishedPosts();
+const posts = await getCollection("blog");
 
-// Collect all tags (excluding "release")
-const allTags = [...new Set(posts.flatMap(p => p.data.tags.filter(t => t !== 'release')))].sort();
+const sortedPosts = getSortedPosts(posts);
+const featuredPosts = sortedPosts.filter(({ data }) => data.featured);
+const recentPosts = sortedPosts.filter(({ data }) => !data.featured);
 ---
 
-<!doctype html>
-<html lang="zh-CN">
-	<head>
-		<BaseHead title={SITE_TITLE} description={SITE_DESCRIPTION} />
-	</head>
-	<body>
-		<Header />
-		<main>
-			<!-- Search -->
-			<div class="search-wrapper">
-				<button id="search-toggle" aria-label="Search" title="Search">
-					<svg class="icon-search" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-					<svg class="icon-close" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none;"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-				</button>
-				<div class="search-box" style="display:none;">
-					<input type="text" id="search-input" placeholder="Search posts..." autocomplete="off" />
-				</div>
-			</div>
+<Layout>
+  <Header />
+  <main id="main-content" data-layout="index" class="app-layout">
+    <section id="hero" class:list={["pt-8 pb-6", "border-b border-border"]}>
+      <h1 class="my-4 inline-block text-4xl font-bold sm:my-8 sm:text-5xl">
+        Mingalaba
+      </h1>
+      <a
+        target="_blank"
+        href="/rss.xml"
+        class="inline-block"
+        aria-label="rss feed"
+        title="RSS Feed"
+      >
+        <IconRss
+          width={20}
+          height={20}
+          class="scale-125 stroke-accent stroke-3 rtl:-rotate-90"
+        />
+        <span class="sr-only">RSS Feed</span>
+      </a>
 
-			<!-- Tag filter -->
-			{allTags.length > 0 && (
-				<div class="tag-filter">
-					<button class="tag active" data-tag="all">All</button>
-					{allTags.map(tag => (
-						<button class="tag" data-tag={tag}>{tag}</button>
-					))}
-				</div>
-			)}
+      <p>
+        AstroPaper is a minimal, responsive, accessible and SEO-friendly Astro
+        blog theme. This theme follows best practices and provides accessibility
+        out of the box. Light and dark mode are supported by default. Moreover,
+        additional color schemes can also be configured.
+      </p>
+      <p class="mt-2">
+        Read the blog posts or check
+        <LinkButton
+          class="underline decoration-dashed underline-offset-4 hover:text-accent"
+          href="https://github.com/satnaing/astro-paper#readme"
+        >
+          README
+        </LinkButton> for more info.
+      </p>
+      {
+        // only display if at least one social link is enabled
+        SOCIALS.length > 0 && (
+          <div class="mt-4 flex max-sm:flex-col sm:items-center">
+            <div class="me-2 mb-1 whitespace-nowrap sm:mb-0">Social Links:</div>
+            <Socials />
+          </div>
+        )
+      }
+    </section>
 
-			<!-- Posts -->
-			{posts.length === 0 && <p class="empty">No posts yet. Start writing!</p>}
-			<ul class="post-list">
-				{posts.map((post) => {
-					const readingTime = getReadingTime(post.body || '');
-					const tags = post.data.tags.filter(t => t !== 'release');
-					return (
-						<li class="post-item" data-title={post.data.title.toLowerCase()} data-desc={post.data.description.toLowerCase()} data-tags={tags.join(',')}>
-							<a href={`/blog/${post.id}/`}>
-								<div class="post-meta">
-									<FormattedDate date={post.data.pubDate} />
-									<span class="dot">&middot;</span>
-									<span class="reading-time">{readingTime} min read</span>
-								</div>
-								<h3 class="post-title">{post.data.title}</h3>
-								<p class="post-desc">{post.data.description}</p>
-								{tags.length > 0 && (
-									<div class="post-tags">
-										{tags.map(tag => (
-											<span class="tag">{tag}</span>
-										))}
-									</div>
-								)}
-							</a>
-						</li>
-					);
-				})}
-			</ul>
-			<p class="no-results" style="display:none;">No matching posts found.</p>
-		</main>
-		<Footer />
+    {
+      featuredPosts.length > 0 && (
+        <section
+          id="featured"
+          class:list={[
+            "pt-12 pb-6",
+            { "border-b border-border": recentPosts.length > 0 },
+          ]}
+        >
+          <h2 class="text-2xl font-semibold tracking-wide">Featured</h2>
+          <ul>
+            {featuredPosts.map(data => (
+              <Card variant="h3" {...data} />
+            ))}
+          </ul>
+        </section>
+      )
+    }
 
-		<script is:inline>
-			document.addEventListener('DOMContentLoaded', () => {
-				const toggle = document.getElementById('search-toggle');
-				const searchBox = document.querySelector('.search-box');
-				const input = document.getElementById('search-input');
-				const iconSearch = toggle.querySelector('.icon-search');
-				const iconClose = toggle.querySelector('.icon-close');
-				const items = document.querySelectorAll('.post-item');
-				const tagBtns = document.querySelectorAll('.tag-filter .tag');
-				const noResults = document.querySelector('.no-results');
-				let activeTag = 'all';
-				let searchOpen = false;
+    {
+      recentPosts.length > 0 && (
+        <section id="recent-posts" class="pt-12 pb-6">
+          <h2 class="text-2xl font-semibold tracking-wide">Recent Posts</h2>
+          <ul>
+            {recentPosts.map(
+              (data, index) =>
+                index < SITE.postPerIndex && <Card variant="h3" {...data} />
+            )}
+          </ul>
+        </section>
+      )
+    }
 
-				toggle.addEventListener('click', () => {
-					searchOpen = !searchOpen;
-					searchBox.style.display = searchOpen ? 'flex' : 'none';
-					iconSearch.style.display = searchOpen ? 'none' : '';
-					iconClose.style.display = searchOpen ? '' : 'none';
-					if (searchOpen) {
-						input.focus();
-					} else {
-						input.value = '';
-						filterPosts();
-					}
-				});
+    <div class="my-8 text-center">
+      <LinkButton href="/posts/">
+        All Posts
+        <IconArrowRight class="inline-block rtl:-rotate-180" />
+      </LinkButton>
+    </div>
+  </main>
+  <Footer />
+</Layout>
 
-				function filterPosts() {
-					const query = input.value.toLowerCase().trim();
-					let visible = 0;
-					items.forEach(item => {
-						const title = item.getAttribute('data-title');
-						const desc = item.getAttribute('data-desc');
-						const tags = item.getAttribute('data-tags');
-						const matchSearch = !query || title.includes(query) || desc.includes(query);
-						const matchTag = activeTag === 'all' || tags.split(',').includes(activeTag);
-						const show = matchSearch && matchTag;
-						item.style.display = show ? '' : 'none';
-						if (show) visible++;
-					});
-					noResults.style.display = visible === 0 ? '' : 'none';
-				}
-
-				input.addEventListener('input', filterPosts);
-
-				tagBtns.forEach(btn => {
-					btn.addEventListener('click', () => {
-						tagBtns.forEach(b => b.classList.remove('active'));
-						btn.classList.add('active');
-						activeTag = btn.getAttribute('data-tag');
-						filterPosts();
-					});
-				});
-			});
-		</script>
-
-		<style>
-			.search-wrapper {
-				display: flex;
-				align-items: center;
-				gap: 0.75em;
-				margin-bottom: 1.5em;
-			}
-			#search-toggle {
-				background: none;
-				border: 1px solid var(--border);
-				border-radius: 8px;
-				padding: 0.45em;
-				cursor: pointer;
-				color: var(--text-secondary);
-				display: flex;
-				align-items: center;
-				justify-content: center;
-				transition: all 0.2s ease;
-				flex-shrink: 0;
-			}
-			#search-toggle:hover {
-				color: var(--accent);
-				border-color: var(--accent);
-			}
-			.search-box {
-				flex: 1;
-				display: flex;
-				align-items: center;
-				padding: 0.5em 1em;
-				border: 1px solid var(--border);
-				border-radius: 12px;
-				background: var(--bg);
-				transition: border-color 0.2s;
-				animation: slideIn 0.2s ease;
-			}
-			.search-box:focus-within {
-				border-color: var(--accent);
-			}
-			#search-input {
-				border: none;
-				outline: none;
-				background: transparent;
-				width: 100%;
-				font-size: 1rem;
-				color: var(--text);
-			}
-			#search-input::placeholder {
-				color: var(--text-secondary);
-			}
-			@keyframes slideIn {
-				from { opacity: 0; transform: translateX(-10px); }
-				to { opacity: 1; transform: translateX(0); }
-			}
-
-			.tag-filter {
-				display: flex;
-				gap: 0.5em;
-				flex-wrap: wrap;
-				margin-bottom: 2em;
-			}
-			.tag-filter .tag {
-				cursor: pointer;
-				border: none;
-				font-family: inherit;
-			}
-			.tag-filter .tag.active {
-				background: var(--accent);
-				color: #fff;
-			}
-
-			.post-list {
-				list-style: none;
-				margin: 0;
-				padding: 0;
-			}
-			.post-item {
-				margin-bottom: 0;
-				border-bottom: 1px solid var(--border);
-			}
-			.post-item:last-child {
-				border-bottom: none;
-			}
-			.post-item a {
-				display: block;
-				padding: 1.25em 0;
-				text-decoration: none;
-				transition: transform 0.15s ease;
-			}
-			.post-item a:hover {
-				text-decoration: none;
-			}
-			.post-item a:hover .post-title {
-				color: var(--accent);
-			}
-			.post-meta {
-				display: flex;
-				align-items: center;
-				gap: 0.4em;
-				font-size: 0.85rem;
-				color: var(--text-secondary);
-				margin-bottom: 0.3em;
-			}
-			.dot { opacity: 0.5; }
-			.post-title {
-				margin: 0 0 0.3em 0;
-				color: rgb(var(--black));
-				font-size: 1.25rem;
-				line-height: 1.4;
-				transition: color 0.2s;
-			}
-			.post-desc {
-				margin: 0 0 0.5em;
-				color: var(--text-secondary);
-				font-size: 0.9rem;
-				line-height: 1.5;
-			}
-			.post-tags {
-				display: flex;
-				gap: 0.4em;
-				flex-wrap: wrap;
-			}
-			.post-tags .tag {
-				font-size: 0.7rem;
-				pointer-events: none;
-			}
-			.no-results, .empty {
-				text-align: center;
-				color: var(--text-secondary);
-				padding: 3em 0;
-			}
-		</style>
-	</body>
-</html>
+<script>
+  document.addEventListener("astro:page-load", () => {
+    const indexLayout = (document.querySelector("#main-content") as HTMLElement)
+      ?.dataset?.layout;
+    if (indexLayout) {
+      sessionStorage.setItem("backUrl", "/");
+    }
+  });
+</script>

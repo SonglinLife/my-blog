@@ -1,0 +1,23 @@
+export const SITE = {
+  website: "https://f3dlife.com/",
+  author: "F3D",
+  profile: "https://f3dlife.com/",
+  desc: "My personal blog",
+  title: "F3D Life",
+  ogImage: "astropaper-og.jpg",
+  lightAndDarkMode: true,
+  postPerIndex: 4,
+  postPerPage: 8,
+  scheduledPostMargin: 15 * 60 * 1000,
+  showArchives: true,
+  showBackButton: true,
+  editPost: {
+    enabled: false,
+    text: "Edit page",
+    url: "https://github.com/SonglinLife/my-blog/edit/main/",
+  },
+  dynamicOgImage: true,
+  dir: "ltr",
+  lang: "zh-CN",
+  timezone: "Asia/Shanghai",
+} as const;
