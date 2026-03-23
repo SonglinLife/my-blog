@@ -19,3 +19,9 @@ tags:
 3. git push 自动部署
 
 就这么简单！
+
+
+
+### 图片
+
+![image-20260323111131941](https://img.f3dlife.com/blog/2026/03/23/b4357e3c-bc0b-43a9-9765-84de8bcb4850.png)
