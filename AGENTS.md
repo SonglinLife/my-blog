@@ -88,6 +88,7 @@ node scripts/render-terminal-screenshot.js tmp/example.out src/data/blog/<post-a
 
 5. Embed the source code and result screenshot next to the specific concept being explained, not as a detached final appendix.
 6. Explain the conflict or question first, then show the code and screenshot as evidence.
+7. Use visual emphasis to guide the reader: bold the key conflict, the surprising observation, and the final conclusion.
 
 Rules:
 
@@ -95,6 +96,12 @@ Rules:
 - Keep examples minimal, reproducible, and named after the concept they verify.
 - If an example is expected to fail, verify the non-zero exit code and the relevant error code/message.
 - If using `unsafe`, raw pointers, custom allocators, or other special machinery, explain exactly why it is used and how it maps back to the safe Rust/API rule being discussed.
+- Use `**bold**` for the one sentence the reader must not miss, especially:
+  - the contradiction being constructed, such as `**这两个承诺不能同时成立。**`
+  - the line to notice in a screenshot or output, such as `**push 之后 ptr 变了，但旧地址还在。**`
+  - the rule being justified, such as `**这就是为什么需要独占可变访问。**`
+- Use short `text` code blocks for side-by-side mappings or invariants. Do not rely on a long paragraph when a two-line contrast is clearer.
+- Do not bold entire paragraphs. Highlight only the conflict, observation, or conclusion.
 - Keep reusable example source files in `examples/<post-slug>/`; keep temporary command output under `tmp/` and do not commit it.
 - Local screenshots are allowed in drafts. Before release, `npm run post:release` must upload them to R2 and rewrite the Markdown to public URLs.
 
