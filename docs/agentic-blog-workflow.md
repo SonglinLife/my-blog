@@ -110,6 +110,7 @@ npm run build
 Before commit/push:
 
 ```bash
+npm run post:guardrails
 npm run post:check
 npm run build
 ```
@@ -120,6 +121,28 @@ If the user asks for a commit or PR, include:
 - changed assets/indexes
 - no `.env`
 - no private notes
+
+## Google Indexing Workflow
+
+Google Search Console setup is site-level infrastructure, not a per-post task.
+
+Current setup:
+
+- Property type: Domain property for `f3dlife.com`.
+- Verification method: DNS TXT record in Cloudflare.
+- Sitemap submitted in Search Console: `https://f3dlife.com/sitemap-index.xml`.
+- `robots.txt` also declares the same sitemap.
+
+Agent rules:
+
+- Do not delete the Google TXT verification record from Cloudflare.
+- Do not expose the full `google-site-verification=...` token in articles, screenshots, commits, or docs.
+- Prefer DNS TXT verification over granting Google direct Cloudflare account access.
+- When submitting a sitemap for this domain property, use the full URL: `https://f3dlife.com/sitemap-index.xml`.
+- If Search Console briefly reports "could not fetch", verify both `sitemap-index.xml` and child sitemaps with `curl` before changing site code.
+- A successful sitemap submission does not mean immediate indexing. Use URL Inspection only for important posts that need a manual recrawl request.
+
+After a normal post release, do not resubmit the sitemap manually. The build updates the sitemap; Google will recrawl on its own schedule.
 
 ## Image Handling Details
 
@@ -152,3 +175,8 @@ blog/YYYY/MM/DD/<safe-name>-<uuid>.<ext>
 - User has not approved release: keep `draft` or no `release` tag.
 - Current factual claim is uncertain: verify or mark TODO.
 - Build fails: fix before publishing.
+- Search Console screenshot contains account UI: crop or redact before using it in a post.
+- Sitemap input says the address is invalid: use the full sitemap URL, not `sitemap-index.xml`.
+- Search Console shows zero discovered pages immediately after submission: wait; first processing can lag behind successful sitemap submission.
+- `pnpm` or `yarn` generated lockfiles/assets: remove them, run `npm ci`, then rebuild with `npm run build`.
+- Pagefind generated version differs from `package-lock.json`: restore generated assets, run `npm ci`, then rebuild with `npm run build`.

@@ -8,3 +8,6 @@ fi
 
 echo "[blog] checking posts"
 node scripts/check-posts.js
+
+echo "[blog] checking workflow guardrails"
+node scripts/check-guardrails.js

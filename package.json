@@ -13,6 +13,7 @@
     "post:new": "node scripts/new-post.js",
     "post:check": "node scripts/check-posts.js",
     "post:check:strict": "node scripts/check-posts.js --strict",
+    "post:guardrails": "node scripts/check-guardrails.js",
     "post:images": "node scripts/upload-post-images.js",
     "post:publish": "node scripts/publish-post.js",
     "hooks:install": "sh scripts/install-git-hooks.sh"
