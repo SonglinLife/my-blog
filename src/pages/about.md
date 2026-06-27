@@ -1,21 +1,40 @@
 ---
 layout: ../layouts/AboutLayout.astro
-title: "关于 F3D Life"
+title: "About F3D"
 ---
 
-## 我在这里写什么
+吴松林，基础设施研发。
 
-F3D Life 是我的个人博客，主要记录技术实践、AI 工具、数据系统、编程经验和长期学习中的思考。
+我做 AI-scale systems 背后的存储、计算和调度：分布式文件系统、Spark on K8s、向量检索、GPU infra，以及把成本和稳定性做成系统能力。
 
-我希望这里的文章像一份可回看的工作笔记：有问题背景，有探索过程，也有最后留下来的判断。它不追逐热点，更关注那些真正改变工作方式、理解方式和生活节奏的东西。
+Next stop: **MiniMax · LLM Distributed Storage**.
 
-## 最近关注
+## Focus
 
-- AI agent、Codex、Skills 与个人工作流
-- 数据系统、Spark、工程稳定性和性能分析
-- 编程工具、自动化与知识管理
-- 读书笔记，以及把复杂问题讲清楚的方法
+- Distributed storage for LLM workloads
+- Cloud-native compute and Spark on Kubernetes
+- Metadata systems, CSI, object storage, FinOps
+- Disk ANN search, I/O pipeline, SIMD, cache design
+- Agentic tooling for infra diagnosis and migration
 
-## 联系
+## Signals
 
-如果你也在研究类似的问题，欢迎通过页面底部的 GitHub 找到我。
+- **MiniMax**：LLM 分布式存储方向。
+- **Trip.com**：Spark on K8s、JuiceFS/TiKV、AI storage、GPU infra、cost governance。
+- **Milvus**：Starling disk-based vector search.
+- **Open source**：JuiceFS / TiKV 相关性能与稳定性优化贡献。
+- **Education**：Tongji University · M.S. Computer Science.
+
+## Stack
+
+`C++` `Go` `Python` `Kubernetes` `Spark` `JuiceFS` `TiKV` `Milvus` `ANNS` `Prometheus` `Grafana` `pprof` `Codex`
+
+## Writing
+
+这里记录 infra notes：问题、判断、实验、复盘。
+
+不写流水账，不写万能方法论。只写我真的拆过、跑过、踩过、重新设计过的系统问题。
+
+## Contact
+
+GitHub 在页面底部。欢迎聊 storage、AI infra、systems performance。

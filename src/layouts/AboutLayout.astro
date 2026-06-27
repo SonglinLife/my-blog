@@ -14,9 +14,52 @@ const { frontmatter } = Astro.props;
 <Layout title={`${frontmatter.title} | ${SITE.title}`}>
   <Header />
   <Breadcrumb />
-  <main id="main-content" class="app-layout">
-    <section id="about" class="app-prose mb-28 max-w-app prose-img:border-0">
-      <h1 class="text-2xl tracking-wider sm:text-3xl">{frontmatter.title}</h1>
+  <main id="main-content" class="mx-auto w-full max-w-5xl px-4">
+    <section
+      class="relative my-8 overflow-hidden rounded-md border border-border bg-muted/25 px-5 py-6 sm:my-10 sm:px-8 sm:py-8"
+      aria-labelledby="about-hero-title"
+    >
+      <div
+        class="pointer-events-none absolute inset-0 opacity-35"
+        style={{
+          backgroundImage:
+            "linear-gradient(var(--border) 1px, transparent 1px), linear-gradient(90deg, var(--border) 1px, transparent 1px)",
+          backgroundSize: "28px 28px",
+        }}
+      />
+      <div class="relative grid gap-8 lg:grid-cols-[1.45fr_0.85fr] lg:items-end">
+        <div>
+          <p class="font-mono text-xs tracking-[0.22em] text-accent uppercase">
+            F3D / AI Infrastructure
+          </p>
+          <h1
+            id="about-hero-title"
+            class="mt-4 max-w-3xl text-3xl leading-tight font-semibold text-foreground sm:text-5xl"
+          >
+            Building storage systems for AI-scale workloads.
+          </h1>
+          <p class="mt-5 max-w-2xl text-base leading-7 text-foreground/80 sm:text-lg">
+            Distributed storage, cloud-native compute, vector search, and infra automation.
+          </p>
+        </div>
+        <div class="grid gap-3 font-mono text-xs text-foreground/75 sm:grid-cols-2 lg:grid-cols-1">
+          <div class="border border-border bg-background/70 p-3">
+            <span class="block text-accent">NEXT</span>
+            <span>MiniMax / LLM Distributed Storage</span>
+          </div>
+          <div class="border border-border bg-background/70 p-3">
+            <span class="block text-accent">STACK</span>
+            <span>JuiceFS / TiKV / Spark / ANNS</span>
+          </div>
+          <div class="border border-border bg-background/70 p-3">
+            <span class="block text-accent">MODE</span>
+            <span>Performance / Reliability / Cost</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="about" class="app-prose mx-auto mb-28 max-w-app prose-img:border-0">
       <slot />
     </section>
   </main>
