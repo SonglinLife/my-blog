@@ -71,7 +71,34 @@ Use this structure unless the user asks otherwise:
 
 Remove sections that do not fit. Public posts should not feel templated.
 
-### 3. Handle Images
+### 3. Executable Examples And Screenshot Verification
+
+For technical learning posts, prefer verified examples over purely verbal explanation when a concept depends on compiler behavior, runtime output, memory layout intuition, command output, or API behavior.
+
+Use this workflow:
+
+1. Create small, focused example source files under `examples/<post-slug>/`.
+2. Compile/run them, or intentionally compile them expecting failure when explaining compiler diagnostics.
+3. Capture real stdout/stderr; do not invent command output.
+4. Render terminal-style screenshots with:
+
+```bash
+node scripts/render-terminal-screenshot.js tmp/example.out src/data/blog/<post-assets>/example.png "command title"
+```
+
+5. Embed the source code and result screenshot next to the specific concept being explained, not as a detached final appendix.
+6. Explain the conflict or question first, then show the code and screenshot as evidence.
+
+Rules:
+
+- Every screenshot needs meaningful alt text.
+- Keep examples minimal, reproducible, and named after the concept they verify.
+- If an example is expected to fail, verify the non-zero exit code and the relevant error code/message.
+- If using `unsafe`, raw pointers, custom allocators, or other special machinery, explain exactly why it is used and how it maps back to the safe Rust/API rule being discussed.
+- Keep reusable example source files in `examples/<post-slug>/`; keep temporary command output under `tmp/` and do not commit it.
+- Local screenshots are allowed in drafts. Before release, `npm run post:release` must upload them to R2 and rewrite the Markdown to public URLs.
+
+### 4. Handle Images
 
 Use remote public image URLs whenever possible.
 
@@ -90,7 +117,7 @@ Image rules:
 - Prefer compressed web-friendly images.
 - Keep diagrams readable on mobile.
 
-### 4. Validate
+### 5. Validate
 
 Run:
 
@@ -106,7 +133,7 @@ For a single post:
 npm run post:check -- src/data/blog/example.md
 ```
 
-### 5. Publish
+### 6. Publish
 
 Only after explicit user approval:
 
@@ -172,6 +199,7 @@ Guidelines:
 
 ## Repository Map
 
+- `examples/`: reproducible source files used by technical posts.
 - `src/data/blog/`: Markdown posts.
 - `src/pages/index.astro`: homepage.
 - `src/utils/postFilter.ts`: release filtering.
@@ -181,6 +209,7 @@ Guidelines:
 - `scripts/upload-post-images.js`: upload local post images to R2.
 - `scripts/publish-post.js`: set release metadata and upload images.
 - `scripts/release-post.js`: one-command publish, validate, build, commit, and push workflow.
+- `scripts/render-terminal-screenshot.js`: render captured command output into blog-ready terminal screenshots.
 - `scripts/upload-to-r2.js`: low-level image uploader.
 - `docs/agentic-blog-workflow.md`: detailed workflow.
 - `docs/blog-writing-rules.md`: writing and editorial rules.
@@ -192,6 +221,7 @@ A blog change is done when:
 - The post has clean frontmatter.
 - The public article contains no internal notes.
 - Images are public URLs and renderable.
+- Executable examples and expected-failure examples used by the article have been run and verified.
 - `npm run post:guardrails` passes.
 - `npm run post:check` passes.
 - `npm run build` passes.
