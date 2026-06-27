@@ -6,10 +6,18 @@ const currentUrlPath = Astro.url.pathname.replace(/\/+$/, "");
 // eg: /tags/tailwindcss => ['tags', 'tailwindcss']
 const breadcrumbList = currentUrlPath.split("/").slice(1);
 
+const nameMap: Record<string, string> = {
+  posts: "文章",
+  tags: "标签",
+  archives: "归档",
+  about: "关于",
+  search: "搜索",
+};
+
 // if breadcrumb is Home > Posts > 1 <etc>
 // replace Posts with Posts (page number)
 if (breadcrumbList[0] === "posts") {
-  breadcrumbList.splice(0, 2, `Posts (page ${breadcrumbList[1] || 1})`);
+  breadcrumbList.splice(0, 2, `文章${breadcrumbList[1] ? `（第 ${breadcrumbList[1]} 页）` : ""}`);
 }
 
 // if breadcrumb is Home > Tags > [tag] > [page] <etc>
@@ -28,7 +36,7 @@ if (breadcrumbList[0] === "tags" && !isNaN(Number(breadcrumbList[2]))) {
     class="font-light [&>li]:inline [&>li:not(:last-child)>a]:hover:opacity-100"
   >
     <li>
-      <a href="/" class="opacity-80">Home</a>
+      <a href="/" class="opacity-80">首页</a>
       <span aria-hidden="true" class="opacity-80">&raquo;</span>
     </li>
     {
@@ -40,13 +48,13 @@ if (breadcrumbList[0] === "tags" && !isNaN(Number(breadcrumbList[2]))) {
               aria-current="page"
             >
               {/* make the last part lowercase in Home > Tags > some-tag */}
-              {decodeURIComponent(breadcrumb)}
+              {nameMap[breadcrumb] ?? decodeURIComponent(breadcrumb)}
             </span>
           </li>
         ) : (
           <li>
             <a href={`/${breadcrumb}/`} class="capitalize opacity-70">
-              {breadcrumb}
+              {nameMap[breadcrumb] ?? decodeURIComponent(breadcrumb)}
             </a>
             <span aria-hidden="true">&raquo;</span>
           </li>

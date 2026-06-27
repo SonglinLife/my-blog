@@ -16,9 +16,15 @@ pnpm-debug.log*
 # environment variables
 .env
 .env.production
+env
 
 # macOS-specific files
 .DS_Store
 
 # jetbrains setting folder
 .idea/
+
+# local AI writing materials
+draft-assets/
+.blog-drafts/
+learn-tech_outputs/

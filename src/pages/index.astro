@@ -7,6 +7,8 @@ import Socials from "@/components/Socials.astro";
 import LinkButton from "@/components/LinkButton.astro";
 import Card from "@/components/Card.astro";
 import getSortedPosts from "@/utils/getSortedPosts";
+import getUniqueTags from "@/utils/getUniqueTags";
+import { getPath } from "@/utils/getPath";
 import IconRss from "@/assets/icons/IconRss.svg";
 import IconArrowRight from "@/assets/icons/IconArrowRight.svg";
 import { SITE } from "@/config";
@@ -17,92 +19,136 @@ const posts = await getCollection("blog");
 const sortedPosts = getSortedPosts(posts);
 const featuredPosts = sortedPosts.filter(({ data }) => data.featured);
 const recentPosts = sortedPosts.filter(({ data }) => !data.featured);
+const displayPosts = featuredPosts.length > 0 ? featuredPosts : recentPosts;
+const tags = getUniqueTags(posts).filter(({ tagName }) => tagName !== "release");
+const postCount = sortedPosts.length;
+const latestPost = sortedPosts[0];
 ---
 
-<Layout>
+<Layout description={SITE.desc}>
   <Header />
   <main id="main-content" data-layout="index" class="app-layout">
-    <section id="hero" class:list={["pt-8 pb-6", "border-b border-border"]}>
-      <h1 class="my-4 inline-block text-4xl font-bold sm:my-8 sm:text-5xl">
-        Mingalaba
+    <section id="hero" class="py-9 sm:py-12">
+      <p class="mb-3 text-sm font-semibold tracking-[0.18em] text-accent uppercase">
+        F3D Life
+      </p>
+      <h1 class="max-w-2xl text-3xl leading-tight font-bold sm:text-4xl">
+        把技术实践、AI 工具和长期学习写清楚。
       </h1>
-      <a
-        target="_blank"
-        href="/rss.xml"
-        class="inline-block"
-        aria-label="rss feed"
-        title="RSS Feed"
-      >
-        <IconRss
-          width={20}
-          height={20}
-          class="scale-125 stroke-accent stroke-3 rtl:-rotate-90"
-        />
-        <span class="sr-only">RSS Feed</span>
-      </a>
-
-      <p>
-        AstroPaper is a minimal, responsive, accessible and SEO-friendly Astro
-        blog theme. This theme follows best practices and provides accessibility
-        out of the box. Light and dark mode are supported by default. Moreover,
-        additional color schemes can also be configured.
+      <p class="mt-4 max-w-2xl text-base leading-8 text-foreground/82 sm:text-lg">
+        这里记录我在工程、数据系统、AI agent 与个人效率上的实验和复盘。文章不追求热闹，更在意把问题拆开、把经验留下。
       </p>
-      <p class="mt-2">
-        Read the blog posts or check
+      <div class="mt-6 flex flex-wrap items-center gap-3">
         <LinkButton
-          class="underline decoration-dashed underline-offset-4 hover:text-accent"
-          href="https://github.com/satnaing/astro-paper#readme"
+          href="/posts/"
+          class="rounded-md bg-accent px-4 py-2 font-medium text-background hover:opacity-90"
         >
-          README
-        </LinkButton> for more info.
-      </p>
+          阅读文章
+          <IconArrowRight class="inline-block rtl:-rotate-180" />
+        </LinkButton>
+        <LinkButton
+          href="/about/"
+          class="rounded-md border border-border px-4 py-2 font-medium hover:text-accent"
+        >
+          关于我
+        </LinkButton>
+        <a
+          href="/rss.xml"
+          class="focus-outline inline-flex items-center gap-2 rounded-md border border-border px-3 py-2 font-medium hover:text-accent"
+          aria-label="订阅 RSS"
+          title="订阅 RSS"
+        >
+          <IconRss class="size-5 stroke-current stroke-3 rtl:-rotate-90" />
+          <span>RSS</span>
+        </a>
+      </div>
       {
         // only display if at least one social link is enabled
         SOCIALS.length > 0 && (
-          <div class="mt-4 flex max-sm:flex-col sm:items-center">
-            <div class="me-2 mb-1 whitespace-nowrap sm:mb-0">Social Links:</div>
+          <div class="mt-5 flex max-sm:flex-col sm:items-center">
+            <div class="me-2 mb-1 whitespace-nowrap text-sm text-foreground/70 sm:mb-0">
+              也可以在这里找到我：
+            </div>
             <Socials />
           </div>
         )
       }
+
+      <p class="mt-6 border-y border-border py-3 text-sm leading-7 text-foreground/70">
+        已发布 {postCount} 篇文章，覆盖 {tags.length} 个主题
+        {
+          latestPost && (
+            <>
+              <span aria-hidden="true"> · </span>
+              最近更新：
+              <a
+                href={getPath(latestPost.id, latestPost.filePath)}
+                class="font-medium text-foreground underline decoration-dashed underline-offset-4 hover:text-accent"
+              >
+                {latestPost.data.title}
+              </a>
+            </>
+          )
+        }
+      </p>
     </section>
 
     {
-      featuredPosts.length > 0 && (
-        <section
-          id="featured"
-          class:list={[
-            "pt-12 pb-6",
-            { "border-b border-border": recentPosts.length > 0 },
-          ]}
-        >
-          <h2 class="text-2xl font-semibold tracking-wide">Featured</h2>
+      displayPosts.length > 0 && (
+        <section id="featured" class="pt-8 pb-6">
+          <div class="mb-2 flex items-end justify-between gap-4">
+            <div>
+              <p class="text-sm font-semibold tracking-[0.18em] text-accent uppercase">
+                最新
+              </p>
+              <h2 class="text-2xl font-semibold tracking-wide">
+                {featuredPosts.length > 0 ? "推荐阅读" : "最新文章"}
+              </h2>
+            </div>
+            <LinkButton
+              href="/posts/"
+              class="hidden text-sm font-medium underline decoration-dashed underline-offset-4 hover:text-accent sm:inline-block"
+            >
+              全部文章
+            </LinkButton>
+          </div>
           <ul>
-            {featuredPosts.map(data => (
-              <Card variant="h3" {...data} />
+            {displayPosts
+              .slice(0, SITE.postPerIndex)
+              .map(data => <Card variant="h3" {...data} />)}
+          </ul>
+        </section>
+      )
+    }
+
+    {
+      tags.length > 0 && (
+        <section id="topics" class="border-t border-border pt-10 pb-6">
+          <div class="mb-4">
+            <p class="text-sm font-semibold tracking-[0.18em] text-accent uppercase">
+              主题
+            </p>
+            <h2 class="text-2xl font-semibold tracking-wide">常写主题</h2>
+          </div>
+          <ul class="flex flex-wrap gap-3">
+            {tags.slice(0, 8).map(({ tag, tagName }) => (
+              <li>
+                <a
+                  href={`/tags/${tag}/`}
+                  class="inline-flex rounded-md border border-border px-3 py-2 text-sm font-medium hover:border-accent hover:text-accent"
+                >
+                  #{tagName}
+                </a>
+              </li>
             ))}
           </ul>
         </section>
       )
     }
 
-    {
-      recentPosts.length > 0 && (
-        <section id="recent-posts" class="pt-12 pb-6">
-          <h2 class="text-2xl font-semibold tracking-wide">Recent Posts</h2>
-          <ul>
-            {recentPosts.map(
-              (data, index) =>
-                index < SITE.postPerIndex && <Card variant="h3" {...data} />
-            )}
-          </ul>
-        </section>
-      )
-    }
-
-    <div class="my-8 text-center">
+    <div class="my-8 flex justify-center">
       <LinkButton href="/posts/">
-        All Posts
+        查看全部文章
         <IconArrowRight class="inline-block rtl:-rotate-180" />
       </LinkButton>
     </div>

@@ -9,9 +9,9 @@ import { SITE } from "@/config";
 const backUrl = SITE.showBackButton ? `${Astro.url.pathname}` : "/";
 ---
 
-<Layout title={`Search | ${SITE.title}`}>
+<Layout title={`搜索 | ${SITE.title}`}>
   <Header />
-  <Main pageTitle="Search" pageDesc="Search any article ...">
+  <Main pageTitle="搜索" pageDesc="输入关键词，在已发布文章中查找内容。">
     <div id="pagefind-search" transition:persist data-backurl={backUrl}></div>
   </Main>
   <Footer />
@@ -36,8 +36,8 @@ const backUrl = SITE.showBackButton ? `${Astro.url.pathname}` : "/";
       if (import.meta.env.DEV) {
         pageFindSearch.innerHTML = `
             <div class="bg-muted/75 rounded p-4 space-y-4 mb-4">
-              <p><strong>DEV mode Warning! </strong>You need to build the project at least once to see the search results during development.</p>
-              <code class="block bg-black text-white px-2 py-1 rounded">pnpm run build</code>
+              <p><strong>开发模式提示：</strong>需要至少构建一次项目，开发环境中才能看到搜索结果。</p>
+              <code class="block bg-black text-white px-2 py-1 rounded">npm run build</code>
             </div>
           `;
       }
@@ -47,6 +47,17 @@ const backUrl = SITE.showBackButton ? `${Astro.url.pathname}` : "/";
         element: "#pagefind-search",
         showImages: false,
         showSubResults: true,
+        translations: {
+          placeholder: "搜索文章",
+          clear_search: "清除",
+          load_more: "加载更多结果",
+          search_label: "站内搜索",
+          filters_label: "筛选",
+          zero_results: "没有找到与 [SEARCH_TERM] 相关的结果",
+          one_result: "找到 [COUNT] 个结果",
+          many_results: "找到 [COUNT] 个结果",
+          searching: "正在搜索 [SEARCH_TERM]...",
+        },
         processTerm: function (term: string) {
           params.set("q", term); // Update the `q` parameter in the URL
           history.replaceState(history.state, "", "?" + params.toString()); // Push the new URL without reloading

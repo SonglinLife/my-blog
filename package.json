@@ -7,9 +7,15 @@
   },
   "scripts": {
     "dev": "astro dev",
-    "build": "astro check && astro build && pagefind --site dist && cp -r dist/pagefind public/",
+    "build": "rm -rf public/pagefind && astro check && astro build && rm -rf dist/pagefind && pagefind --site dist && cp -r dist/pagefind public/",
     "preview": "astro preview",
-    "astro": "astro"
+    "astro": "astro",
+    "post:new": "node scripts/new-post.js",
+    "post:check": "node scripts/check-posts.js",
+    "post:check:strict": "node scripts/check-posts.js --strict",
+    "post:images": "node scripts/upload-post-images.js",
+    "post:publish": "node scripts/publish-post.js",
+    "hooks:install": "sh scripts/install-git-hooks.sh"
   },
   "dependencies": {
     "@astrojs/rss": "^4.0.14",

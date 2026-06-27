@@ -1,16 +1,21 @@
 ---
 layout: ../layouts/AboutLayout.astro
-title: "About"
+title: "关于 F3D Life"
 ---
 
-## F3D Life
+## 我在这里写什么
 
-This is my personal blog. I write about tech, programming, and life.
+F3D Life 是我的个人博客，主要记录技术实践、AI 工具、数据系统、编程经验和长期学习中的思考。
 
-## How it works
+我希望这里的文章像一份可回看的工作笔记：有问题背景，有探索过程，也有最后留下来的判断。它不追逐热点，更关注那些真正改变工作方式、理解方式和生活节奏的东西。
 
-- Write markdown in Typora, images auto-upload to Cloudflare R2
-- Add `tags: [release]` to publish
-- `git push` triggers auto-deploy via Cloudflare Pages
+## 最近关注
 
-Built with [Astro](https://astro.build/) and [AstroPaper](https://github.com/satnaing/astro-paper).
+- AI agent、Codex、Skills 与个人工作流
+- 数据系统、Spark、工程稳定性和性能分析
+- 编程工具、自动化与知识管理
+- 读书笔记，以及把复杂问题讲清楚的方法
+
+## 联系
+
+如果你也在研究类似的问题，欢迎通过页面底部的 GitHub 找到我。

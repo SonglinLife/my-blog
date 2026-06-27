@@ -1,0 +1,10 @@
+#!/bin/sh
+set -eu
+
+if git diff --cached --name-only | grep -q '^src/data/blog/.*\.md$'; then
+  echo "[blog] normalizing staged blog frontmatter"
+  bash scripts/pre-commit-frontmatter.sh
+fi
+
+echo "[blog] checking posts"
+node scripts/check-posts.js

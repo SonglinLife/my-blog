@@ -1,150 +1,157 @@
-# My Blog
+# F3D Life
 
-个人博客，基于 [AstroPaper](https://github.com/satnaing/astro-paper) 主题 + Astro 5 + Cloudflare Pages + R2。
+AI-first personal blog built with Astro 5, Tailwind CSS, Pagefind, Cloudflare Pages, and Cloudflare R2.
 
-- 站点：https://f3dlife.com
-- 图片存储：https://img.f3dlife.com (Cloudflare R2)
-- 仓库：https://github.com/SonglinLife/my-blog
+- Site: https://f3dlife.com
+- Image CDN: https://img.f3dlife.com
+- Posts: `src/data/blog/`
 
-## 工作流
+## AI-First Workflow
 
-```
-                    ┌─────────────┐
-                    │   Typora    │
-                    │  写 Markdown │
-                    └──────┬──────┘
-                           │
-                    粘贴/拖入图片
-                           │
-                           ▼
-                ┌──────────────────────┐
-                │  upload-to-r2.js     │
-                │  自动上传图片到 R2    │
-                │  返回 img.f3dlife.com│
-                │  URL 嵌入 Markdown   │
-                └──────────┬───────────┘
-                           │
-                    写完文章，添加
-                  tags: [release]
-                           │
-                           ▼
-                  ┌─────────────────┐
-                  │  git add/commit │
-                  │    git push     │
-                  └────────┬────────┘
-                           │
-                           ▼
-              ┌────────────────────────┐
-              │  Cloudflare Pages      │
-              │  自动拉取代码 → 构建    │
-              │  只构建 release 文章    │
-              └────────────┬───────────┘
-                           │
-                           ▼
-                ┌─────────────────────┐
-                │  https://f3dlife.com │
-                │  网站自动更新        │
-                └─────────────────────┘
-```
+This repository is designed for agentic writing:
 
-### 写一篇新文章
+1. The author gives rough thoughts, links, screenshots, or voice-note transcripts.
+2. An AI agent creates or edits a draft.
+3. The agent validates metadata, images, and build output.
+4. The author reviews.
+5. The agent publishes only after explicit approval.
 
-1. 在 `src/data/blog/` 下新建 `.md` 文件
-2. 添加 frontmatter：
+Start with [AGENTS.md](/AGENTS.md). Detailed rules live in:
 
-```yaml
----
-title: '文章标题'
-description: '文章简介'
-pubDatetime: 2026-03-22
-tags: [release, tech]  # 必须包含 release 才会发布
----
-```
+- [Agentic workflow](/docs/agentic-blog-workflow.md)
+- [Writing rules](/docs/blog-writing-rules.md)
+- [Publishing checklist](/docs/publishing-checklist.md)
 
-3. 用 Typora 写内容，粘贴图片会自动上传到 R2
-4. `git add . && git commit -m "new post" && git push`
-5. 等待 Cloudflare Pages 自动构建（约 1 分钟），网站即更新
+## Common Commands
 
-### 发布规则
-
-- `tags` 包含 `release` → 文章发布到网站
-- `tags` 不含 `release` → 文章是草稿，存在仓库但不会构建
-- 想取消发布？删掉 `release` tag，push 即可
-- 过滤逻辑在 `src/utils/postFilter.ts`
-
-## 环境配置
+Create a draft:
 
 ```bash
-cp .env.example .env
-# 编辑 .env 填入你的 Cloudflare / R2 凭据
+npm run post:new -- "文章标题" --tags ai,tech
 ```
 
-`.env` 已在 `.gitignore` 中，不会提交到 Git。
+Check all posts:
 
-### Typora 图片上传
-
-Preferences → Image → Upload Service → Custom Command:
-
-```
-node <项目根目录>/scripts/upload-to-r2.js
+```bash
+npm run post:check
 ```
 
-脚本会从项目根目录的 `.env` 文件读取 R2 凭据，无需额外配置环境变量。
+Upload local images referenced by a post:
 
-## 项目结构
-
-```
-src/
-├── assets/icons/        # SVG 图标
-├── components/          # Astro 组件（Header, Card, Tag 等）
-├── data/blog/           # Markdown 文章放这里
-├── layouts/             # 布局组件（Layout, PostDetails 等）
-├── pages/               # 页面路由（首页、文章、标签、搜索、归档等）
-├── scripts/             # 前端脚本（主题切换）
-├── styles/              # 全局样式 & 排版样式
-├── utils/               # 工具函数
-│   ├── postFilter.ts    #   release 过滤逻辑
-│   ├── getSortedPosts.ts#   文章排序
-│   ├── getUniqueTags.ts #   标签提取
-│   ├── generateOgImages.ts # OG 图片生成
-│   └── ...
-├── config.ts            # 站点配置（URL、作者、功能开关）
-├── content.config.ts    # 内容集合 schema 定义
-└── constants.ts         # 社交链接 & 分享配置
-scripts/
-└── upload-to-r2.js      # Typora 图片上传脚本（从 .env 读取配置）
-.env                     # 凭据配置（不入 Git）
-.env.example             # 凭据模板
+```bash
+npm run post:images -- src/data/blog/example.md
 ```
 
-## 本地开发
+Publish after review approval:
+
+```bash
+npm run post:publish -- src/data/blog/example.md
+npm run build
+```
+
+Local development:
 
 ```bash
 npm install
-npm run dev       # 启动开发服务器 localhost:4321
-npm run build     # 构建生产版本（含 Pagefind 索引生成）
-npm run preview   # 本地预览构建结果
+npm run hooks:install
+npm run dev
+npm run build
+npm run preview
 ```
 
-## 功能特性
+## Publication Rules
 
-- 明暗主题切换
-- Pagefind 全文搜索
-- 动态 OG 图片生成
-- RSS 订阅 & Sitemap
-- 文章归档页
-- 标签分类
-- 代码高亮（Shiki，支持 diff / highlight 标记）
-- 目录自动生成（remark-toc）
-- 响应式设计
+A post is public only when:
 
-## 技术栈
+- `tags` contains `release`
+- `draft` is not `true`
+- `pubDatetime` is not the placeholder date
+- `pubDatetime` has passed the scheduled publish margin
 
-- [Astro 5](https://astro.build) - 静态站点生成
-- [AstroPaper](https://github.com/satnaing/astro-paper) - 博客主题
-- [Tailwind CSS 4](https://tailwindcss.com) - 样式
-- [Pagefind](https://pagefind.app) - 静态搜索
-- [Shiki](https://shiki.style) - 代码高亮
-- [Satori](https://github.com/vercel/satori) + Sharp - OG 图片生成
-- [Cloudflare Pages](https://pages.cloudflare.com) - 部署托管
-- [Cloudflare R2](https://www.cloudflare.com/products/r2) - 图片存储
+Drafts should keep:
+
+```yaml
+pubDatetime: 1970-01-01T00:00:00+08:00
+tags:
+  - draft
+```
+
+Released posts should have:
+
+```yaml
+tags:
+  - release
+  - ai
+draft: false
+```
+
+`release` and `draft` are internal control tags. They are not reader-facing topics.
+
+## Image Upload
+
+R2 credentials are loaded from `.env`.
+
+```bash
+cp .env.example .env
+```
+
+Required:
+
+```bash
+R2_ACCOUNT_ID=
+R2_ACCESS_KEY_ID=
+R2_SECRET_ACCESS_KEY=
+R2_BUCKET_NAME=
+R2_PUBLIC_URL=
+```
+
+Optional:
+
+```bash
+BLOG_IMAGE_KEY_PREFIX=blog
+```
+
+Typora can still use:
+
+```bash
+node /absolute/path/to/scripts/upload-to-r2.js
+```
+
+AI agents should usually use:
+
+```bash
+npm run post:images -- src/data/blog/example.md
+```
+
+## Project Structure
+
+```text
+src/
+  components/        Astro UI components
+  data/blog/         Markdown posts
+  layouts/           Page layouts
+  pages/             Routes
+  styles/            Global styles
+  utils/             Content and path helpers
+scripts/
+  lib/               Shared script utilities
+  new-post.js        Create draft posts
+  check-posts.js     Validate posts
+  upload-to-r2.js    Upload images to R2
+  upload-post-images.js
+  publish-post.js
+docs/
+  agentic-blog-workflow.md
+  blog-writing-rules.md
+  publishing-checklist.md
+```
+
+## Tech Stack
+
+- Astro 5
+- Tailwind CSS 4
+- Pagefind
+- Shiki
+- Satori + Sharp
+- Cloudflare Pages
+- Cloudflare R2

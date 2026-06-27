@@ -2,7 +2,7 @@
 title: 一个优秀的 skill 怎么写
 author: F3D
 pubDatetime: 2026-03-22T00:00:00+08:00
-description: 翻译自X上的一篇文章，讲述了如果编写一个 skill
+description: 翻译自 X 上的一篇文章，讲述如何编写一个高质量 skill。
 tags:
   - release
   - skill
