@@ -111,11 +111,22 @@ npm run post:check -- src/data/blog/example.md
 Only after explicit user approval:
 
 ```bash
-npm run post:publish -- src/data/blog/example.md
-npm run build
+npm run post:release -- src/data/blog/example.md --message "Publish example post"
 ```
 
-Then review the generated page locally before committing.
+When the user says "发布" / "publish" for a specific post, this approval includes the full release mechanics: publish metadata, upload local images to R2, validate, build, commit, and push. Use `npm run post:release` rather than manually chaining the steps.
+
+`post:release` performs:
+
+1. `npm run post:publish -- <post>` to upload local images and set release metadata.
+2. `npm run post:check -- <post>`.
+3. `npm run post:guardrails`.
+4. `npm run build`.
+5. `git add -A`.
+6. `git commit -m <message>`.
+7. `git push origin <current-branch>`.
+
+Use `--no-push` only when the user explicitly asks not to push. If no commit message is given, the script creates one from the post filename.
 
 ## Frontmatter Contract
 
@@ -169,6 +180,7 @@ Guidelines:
 - `scripts/check-posts.js`: validate post metadata/content/images.
 - `scripts/upload-post-images.js`: upload local post images to R2.
 - `scripts/publish-post.js`: set release metadata and upload images.
+- `scripts/release-post.js`: one-command publish, validate, build, commit, and push workflow.
 - `scripts/upload-to-r2.js`: low-level image uploader.
 - `docs/agentic-blog-workflow.md`: detailed workflow.
 - `docs/blog-writing-rules.md`: writing and editorial rules.

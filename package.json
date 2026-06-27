@@ -16,6 +16,7 @@
     "post:guardrails": "node scripts/check-guardrails.js",
     "post:images": "node scripts/upload-post-images.js",
     "post:publish": "node scripts/publish-post.js",
+    "post:release": "node scripts/release-post.js",
     "hooks:install": "sh scripts/install-git-hooks.sh"
   },
   "dependencies": {
