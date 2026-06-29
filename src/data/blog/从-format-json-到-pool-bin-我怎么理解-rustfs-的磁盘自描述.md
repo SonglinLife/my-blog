@@ -67,7 +67,6 @@ Fig. RustFS 4 节点 8 磁盘实验拓扑：`RUSTFS_VOLUMES` 给出 endpoint 列
 这篇里的“4 节点 8 磁盘”不是 4 台真实服务器，而是在一台机器上用 4 个 RustFS 进程模拟 4 个节点。每个节点挂两块目录盘：
 
 ```text
-解释模型，不是原始输出:
 node1: /data1, /data2  -> <mount>/rustfs-dist/node1/disk1, disk2
 node2: /data1, /data2  -> <mount>/rustfs-dist/node2/disk1, disk2
 node3: /data1, /data2  -> <mount>/rustfs-dist/node3/disk1, disk2
@@ -83,7 +82,6 @@ export RUSTFS_VOLUMES="http://node1:9000/data1 http://node1:9000/data2 http://no
 这行的含义很直接：
 
 ```text
-解释模型，不是原始输出:
 http://node1:9000/data1  node1 的第 1 块盘
 http://node1:9000/data2  node1 的第 2 块盘
 ...
@@ -143,7 +141,6 @@ pub volumes: Vec<String>,
 也就是说，多机部署不是靠节点随便广播“我要加入哪个集群”。更准确的模型是：
 
 ```text
-解释模型，不是原始输出:
 all nodes receive the same RUSTFS_VOLUMES
   -> parse endpoint list
   -> decide local endpoints vs remote endpoints
@@ -229,7 +226,6 @@ save_format_file_all(disks, &fms).await?;
 所以 RustFS 的“磁盘自描述”不是说每块盘保存了所有动态状态，而是说每块盘保存了足够稳定的身份和布局信息：
 
 ```text
-解释模型，不是原始输出:
 deployment id: 我属于哪个部署
 this: 我是哪块盘
 sets: 这个 pool 的 set 矩阵长什么样
@@ -272,7 +268,6 @@ fn get_hashed_set_index(&self, input: &str) -> usize {
 这个实验里只有一个 set，所以所有对象都会落到 set 0。但在多个 set 的 pool 中，路径会变成：
 
 ```text
-解释模型，不是原始输出:
 object name
   -> sip_hash(object_name, set_count, deployment_id)
   -> set index
@@ -322,7 +317,6 @@ node4/disk2/dist-bucket/dist-large-2m.bin/<data-dir>/part.1 524352 bytes
 这组数字给出对象路径的结果：
 
 ```text
-解释模型，不是原始输出:
 2 MiB 逻辑对象
   -> hash 到 pool 0 / set 0
   -> 8 个 part.1
@@ -438,7 +432,6 @@ pub async fn save_config<S: ObjectIO>(api: Arc<S>, file: &str, data: Vec<u8>) ->
 所以 `pool.bin` 的“文件位置”不是它的完整语义。更准确地说，它是一个 RustFS config 对象：
 
 ```text
-解释模型，不是原始输出:
 bucket: .rustfs.sys
 object: pool.bin
 disk representation: .rustfs.sys/pool.bin/xl.meta
@@ -513,10 +506,9 @@ struct PersistedPoolStatus {
 [`crates/ecstore/src/pools.rs#L608-L642`](https://github.com/SonglinLife/rustfs/blob/acdf43937162b247619c6a32a5fe079146ca794d/crates/ecstore/src/pools.rs#L608-L642)
 给出 `PersistedPoolDecommissionInfo` 的真实字段。
 
-也就是说，`pool.bin` 的内容可以概括成：
+也就是说，按源码可以把 `pool.bin` 的 payload 读成下面这个结构：
 
 ```text
-解释模型，不是原始 payload:
 u16 little-endian: POOL_META_FORMAT = 1
 u16 little-endian: POOL_META_VERSION = 1
 messagepack(PersistedPoolMeta):
@@ -528,7 +520,7 @@ messagepack(PersistedPoolMeta):
     decommissionInfo?
 ```
 
-这段是解释模型，不是从 `pool.bin/xl.meta` 里直接打印出来的 JSON。已验证的是：磁盘外壳是 `xl.meta`，源码写入的 payload schema 是 `PersistedPoolMeta`，编码方式是 `rmp_serde` MessagePack。本文没有用对象读路径把实验样本的 `pool.bin` payload 反解成可读 JSON。
+这不是从 `pool.bin/xl.meta` 里直接打印出来的 JSON。已验证的是：磁盘外壳是 `xl.meta`，源码写入的 payload schema 是 `PersistedPoolMeta`，编码方式是 `rmp_serde` MessagePack。本文没有用对象读路径把实验样本的 `pool.bin` payload 反解成可读 JSON。
 
 它在架构中的位置也因此清楚了：`format.json` 解决“这块盘是谁、属于哪个 set”；`pool.bin` 解决“当前有哪些 pool，以及这些 pool 的生命周期状态如何”。启动时，`ECStore::init` 会加载 `PoolMeta`，校验后写入运行时的 `ECStore.pool_meta`：
 
@@ -604,7 +596,6 @@ pub async fn reload_pool_meta(&self) -> Result<()> {
 因此可以这样区分：
 
 ```text
-解释模型，不是原始输出:
 format.json
   local disk identity file
   plain JSON
@@ -630,7 +621,6 @@ Fig. 4+4 set 的故障域不是“机器数量”本身，而是 set 内丢失 s
 纠删码利用率可以先用一个简单公式理解：
 
 ```text
-解释模型，不是原始输出:
 usable = data_shards / (data_shards + parity_shards)
 ```
 
@@ -710,7 +700,6 @@ pub fn from_volumes<T: AsRef<str>>(args: &[T], set_drive_count: usize) -> Result
 把启动路径、写入路径和元数据持久化放在一起，可以得到这个工作模型：
 
 ```text
-解释模型，不是原始输出:
 startup path:
   RUSTFS_VOLUMES
     -> endpoint list

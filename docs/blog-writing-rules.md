@@ -221,7 +221,7 @@ Avoid:
 - When explaining an inferred behavior, mark it as inference and say what evidence supports it.
 - Keep evidence faithful. Do not invent, rename, normalize, or fold fields inside JSON/YAML/log/source/output snippets for readability.
 - Redaction and omission are allowed only when explicit: use `...`, `<redacted>`, or a sentence explaining what was omitted.
-- If a simplified representation helps, place it after the real snippet and label it `解释模型`, `伪结构`, or `为了说明的简化模型`; do not present it as a real file.
+- If a simplified representation helps, place it after the real snippet and make clear in reader-facing prose that it is a derived reading, not captured output. Do not expose internal labels such as "解释模型", "伪结构", or "为了说明的简化模型" in public article text.
 
 Good source anchor:
 
