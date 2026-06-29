@@ -226,6 +226,8 @@ Before creating or revising images for this mode, read `docs/technical-visual-st
 - Start long systems posts with a useful architecture or workflow image.
 - Use diagrams to show components, calls, ownership, data flow, or state transitions.
 - Use screenshots only when the UI, log, metric, or object browser is itself evidence.
+- Place evidence screenshots immediately after the claim, command, UI action, or source location they prove; never collect them as a detached appendix.
+- After each evidence screenshot, add one sentence telling the reader exactly which line, value, count, or region to notice.
 - Put a centered caption immediately after each image, beginning with `Fig.`.
 - Captions should name the scenario, not merely repeat the file name.
 - Do not use decorative AI images for technical proof.
@@ -253,6 +255,7 @@ Before creating or revising images for this mode, read `docs/technical-visual-st
 - [ ] Version, environment, or assumptions are explicit.
 - [ ] There is at least one diagram, screenshot, source link, or verified command output for each major claim.
 - [ ] The article has a clear path through the system, not a pile of disconnected notes.
+- [ ] Evidence screenshots sit beside the claim they prove and include a "what to notice" sentence.
 - [ ] Image alt text and `Fig.` captions are meaningful.
 - [ ] Technical images follow `docs/technical-visual-style.md`.
 - [ ] No distinctive wording, assets, or signature elements from the reference author are copied.

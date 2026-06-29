@@ -70,11 +70,39 @@ For systems diagrams:
 - Use icons sparingly and only when they reduce cognitive load. Folder, pod, bucket, database, and node icons are useful; decorative illustrations are not.
 - Do not add personal watermarks. If attribution is needed, put it in the caption or `参考资料`.
 
+### Engineering Diagram Look
+
+The target look is a plain manually composed engineering diagram, not a modern product infographic.
+
+Prefer:
+
+- no large title inside the image; let the article title and `Fig.` caption do that work;
+- modest text hierarchy: component labels slightly larger, detail labels smaller, no hero typography;
+- sparse labels that name real components, files, paths, functions, objects, or states;
+- simple rectangles, grouped zones, arrows, dashed lines, folder/disk/node icons, and small step numbers;
+- visible topology: nodes, disks, buckets, sets, queues, pods, or host boundaries should look like the actual system structure;
+- wide whitespace and a few well-placed objects instead of a balanced poster layout;
+- flat colors with thin outlines; avoid gradients, shadows, glow, and highly saturated accent colors;
+- exported PNG/SVG from an editable source such as SVG, Mermaid, Excalidraw, draw.io, Google Drawings/Slides-style canvas, or a small rendering script.
+
+Avoid:
+
+- slide-cover style diagrams with a huge title and subtitle embedded in the image;
+- card UI layout where every concept becomes a polished rounded card;
+- neon-blue/orange product colors that dominate the figure;
+- oversized bold sans-serif text that feels like a dashboard hero;
+- arrows that are decorative rather than semantic;
+- step bubbles that float on top of arrows without clarifying the actual call/data path;
+- flattening topology into abstract cards when the article needs readers to see machines, disks, files, or shards.
+
+If a diagram starts to look like a SaaS explainer slide, simplify it: remove the title, reduce font sizes, use fewer colors, replace cards with system shapes, and make the real topology visible.
+
 ## Placement
 
 - Put the main orientation diagram near the top of long systems posts.
 - Reuse the same main diagram later when stepping through the flow, but crop or annotate the current region if possible.
 - Place each screenshot directly after the paragraph that raises the claim it proves.
+- Use screenshots as local proof, not as an appendix. The reader should never need to scroll far away from a claim to see its evidence.
 - Put a caption immediately after every image. Start with `Fig.` and describe the scenario:
 
 ```markdown
@@ -82,21 +110,76 @@ For systems diagrams:
 Fig. JuiceFS CSI mount-pod mode: a business pod uses a PV through a per-PV client pod and host bind mounts.
 ```
 
-## AI Drawing Workflow
+## Screenshot Evidence Blocks
 
-Use generative image tools carefully. They are good for layout drafts and simple non-exact diagrams, but bad at exact text, paths, API names, and source code.
+Use this structure when a screenshot proves a claim:
+
+````markdown
+这里要验证的是：`format.json` 不是单点文件，而是每块盘都有一份；其中 `sets` 相同，但 `this` 不同。
+
+```bash
+for d in node*/disk*; do
+  jq '{id, this: .xl.this, sets: .xl.sets}' "$d/.rustfs.sys/format.json"
+done
+```
+
+![Eight RustFS disks show the same deployment id and sets but different this UUID values](./assets/format-json-per-disk.png)
+Fig. Each disk has its own `format.json`; `this` identifies the current disk while `sets` records the pool layout.
+
+注意截图里同一个 set 布局重复出现，但每块盘的 `this` 不一样。
+````
+
+The order matters:
+
+1. Claim: say exactly what the screenshot will prove.
+2. Operation: show the command, UI action, request, or source location that produced it.
+3. Screenshot: crop to the relevant output or UI region.
+4. Caption: describe the scenario, not the file name.
+5. Interpretation: point to the line, value, count, or visual region that matters.
+
+Do not put screenshots in a gallery at the end. Do not ask readers to infer why a screenshot exists.
+
+### When Screenshots Are Mandatory
+
+Use a screenshot, terminal render, or source excerpt when the post relies on:
+
+- real command output, including `tree`, `find`, `du`, `stat`, `jq`, `kubectl`, `docker logs`, `journalctl`, or compiler diagnostics;
+- UI/object-store state, such as bucket contents, uploaded objects, dashboard metrics, or admin panels;
+- log lines where ordering, timestamp, error code, or component name matters;
+- measured values, such as file sizes, shard counts, memory, latency, throughput, or object counts;
+- source-code evidence where the exact function/interface/comment is the proof;
+- before/after state after a command, startup, upload, failure, repair, or migration.
+
+If the evidence is short and purely textual, a code block may be enough. If the claim depends on "I actually ran/saw this", prefer a terminal screenshot rendered from captured output.
+
+## Manual Diagram Workflow
+
+Final technical diagrams should be hand-built from verified facts in an editable format, then exported. Do not use AI-generated bitmap diagrams as the default.
 
 Preferred order:
 
-1. Use source-backed screenshots for real UI, logs, object-store state, metrics, and terminal output.
-2. Use Mermaid, SVG, Excalidraw, draw.io, or another editable diagram format when labels must be exact.
-3. Use AI image generation only for a technical diagram draft, then inspect and correct labels manually.
+1. Create an editable diagram first: SVG, Mermaid, Excalidraw, draw.io, Google Slides/Drawings-style canvas, or a small script that renders a diagram.
+2. Export the final display asset as PNG or SVG.
+3. Keep the editable source next to the exported image when practical, for example under `src/data/blog/<slug>-assets/`.
+4. Use source-backed screenshots for real UI, logs, object-store state, metrics, and terminal output.
+5. Use AI image generation only as a rough layout sketch for a diagram without exact labels, then recreate the final image manually in an editable tool.
 
-Never ask an image model for a generic "beautiful technology illustration". Ask for a specific technical diagram with named components, arrows, and visual hierarchy.
+Never ask an image model for a generic "beautiful technology illustration". For final diagrams, exact labels, paths, arrows, and component boundaries matter more than painterly polish.
 
-### Prompt Template For Diagram Drafts
+### Hand-Drawn Diagram Checklist
 
-Use a prompt like this, then verify every label:
+Before exporting:
+
+- [ ] The source is editable or reproducible.
+- [ ] All labels are manually verified against the article, commands, source code, or screenshots.
+- [ ] The canvas is wide enough for the flow, usually 16:9 or wider.
+- [ ] Related entities use consistent colors across the article.
+- [ ] The exported PNG/SVG is readable at mobile width.
+- [ ] The exported asset has no external watermark, author imitation, or decorative filler.
+
+### Prompt Template For AI Layout Drafts
+
+Use this only for rough layout exploration, then rebuild the final diagram manually:
 
 ```text
 Create a clean technical architecture diagram for a Chinese infrastructure blog post.

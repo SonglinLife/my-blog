@@ -19,7 +19,7 @@ RustFS 的 `.rustfs.sys/` 目录里，有两个很容易误判的对象：每盘
 
 实验拓扑：RustFS 源码 `main@acdf43937162b247619c6a32a5fe079146ca794d`，4 个节点，每个节点 2 块盘，一共 8 个 disk endpoint。实验形成 1 个 pool、1 个 set，上传一个 2 MiB 对象后观察磁盘文件和源码路径。
 
-![RustFS PUT 请求从 S3 客户端进入任意节点，再根据 RUSTFS_VOLUMES、format.json 和对象名哈希写入 pool 0 set 0 的 8 个磁盘分片](https://img.f3dlife.com/blog/2026/06/29/rustfs-put-topology-388bbda3-130a-4b8d-9a25-0627fadaa360.svg)
+![RustFS PUT 请求从 S3 客户端进入任意节点，再根据 RUSTFS_VOLUMES、format.json 和对象名哈希写入 pool 0 set 0 的 8 个磁盘分片](https://img.f3dlife.com/blog/2026/06/29/rustfs-put-topology-437921a8-83f3-4cf9-a355-854be73fec60.svg)
 Fig. RustFS 4 节点 8 磁盘实验拓扑：`RUSTFS_VOLUMES` 给出 endpoint 列表，`format.json` 给出磁盘身份和 set 布局，对象名哈希选择 set，`xl.meta/part.1` 保存对象元数据和分片。
 
 ## 目录
@@ -62,7 +62,14 @@ Fig. RustFS 4 节点 8 磁盘实验拓扑：`RUSTFS_VOLUMES` 给出 endpoint 列
 
 ## 2 先看磁盘上真实出现了什么
 
-上传对象之后，8 块盘上都出现了三类关键文件：
+这里要验证的是：上传对象之后，8 块盘上都有 `format.json`、`pool.bin/xl.meta`、用户对象 `xl.meta`，并且同一个对象在 8 块盘上各有一个 `part.1` 分片。
+
+```bash
+stat key files and part.1 shards
+```
+
+![RustFS 4 节点 8 磁盘实验里，每块盘都有 format.json、pool.bin/xl.meta、对象 xl.meta，且每块盘的 part.1 分片大小都是 524352 字节](https://img.f3dlife.com/blog/2026/06/29/rustfs-layout-stat-b177cca4-cb70-4759-a56a-e96aceec8140.png)
+Fig. PUT 2 MiB 对象后的磁盘文件证据：系统元数据、对象元数据和 `part.1` 分片都分布在 8 块盘上。
 
 ```text
 node1/disk1/.rustfs.sys/format.json 498 bytes
@@ -74,7 +81,9 @@ node4/disk2/.rustfs.sys/pool.bin/xl.meta 537 bytes
 node4/disk2/dist-bucket/dist-large-2m.bin/xl.meta 413 bytes
 ```
 
-对象的数据分片也在 8 块盘上各有一份：
+注意图里两组值：`format.json` 是每盘 498 B，`part.1` 是每盘 524352 B。前者是磁盘身份和 set 布局，后者才是对象数据/校验分片。
+
+对象的数据分片完整列表如下：
 
 ```text
 node1/disk1/.../part.1 524352 bytes
@@ -126,7 +135,17 @@ all nodes receive the same RUSTFS_VOLUMES
 
 `RUSTFS_VOLUMES` 给出预期拓扑，但它本身还不足以说明“这块盘是谁”。磁盘身份落在 `.rustfs.sys/format.json`。
 
-实验里抽取一块盘的 `format.json`，关键信息是：
+这里要验证的是：`format.json` 是每块盘的身份文件。`id` 和 set 宽度相同，但每块盘的 `this` 不同。
+
+```bash
+jq summary node1/disk1/.rustfs.sys/format.json
+for each disk: jq -r .xl.this
+```
+
+![RustFS format.json 摘要显示同一个 deployment id、一个宽度为 8 的 set，以及 8 个不同的 this UUID](https://img.f3dlife.com/blog/2026/06/29/rustfs-format-json-55e9322e-0459-47f9-977c-509fd13fc6dd.png)
+Fig. `format.json` 里的 `id` 标识部署，`setWidths: [8]` 标识 set 宽度，8 个不同的 `this` 标识 8 块不同磁盘。
+
+抽取其中一块盘的 `format.json`，关键信息是：
 
 ```json
 {
@@ -232,7 +251,20 @@ object name
 .rustfs.sys/pool.bin/xl.meta
 ```
 
-但用 RustFS 自带的 `dump_fileinfo` 例子解码后，它更像是一个存放在 `.rustfs.sys` 下的内部对象：
+这里要验证的是：`pool.bin` 不是一个只存在于某台机器上的中心数据库文件；从 `xl.meta` 解码结果看，它走的是 RustFS 内部对象元数据路径，并且这个样本里数据被 inline 到 `xl.meta`。
+
+```bash
+cargo run -p rustfs-filemeta --example dump_fileinfo -- \
+  node1/disk1/.rustfs.sys/pool.bin/xl.meta
+
+cargo run -p rustfs-filemeta --example dump_fileinfo -- \
+  node1/disk1/dist-bucket/dist-large-2m.bin/xl.meta
+```
+
+![RustFS dump_fileinfo 解码 pool.bin/xl.meta 和用户对象 xl.meta，pool.bin 显示 inline data 标记，用户对象显示逻辑大小 2097152 字节](https://img.f3dlife.com/blog/2026/06/29/rustfs-xlmeta-dump-89ae36b3-f4ac-4199-99f9-14fd94e45d82.png)
+Fig. `pool.bin` 和用户对象都能按 `xl.meta` 解码；`pool.bin` 样本带有 `x-rustfs-internal-inline-data=true`，用户对象 `xl.meta` 记录逻辑大小 2097152 B。
+
+用 RustFS 自带的 `dump_fileinfo` 例子解码后，`pool.bin` 更像是一个存放在 `.rustfs.sys` 下的内部对象：
 
 ```text
 path: node1/disk1/.rustfs.sys/pool.bin/xl.meta
@@ -285,7 +317,7 @@ pool.bin
 
 实验里的 set 宽度是 8，对象被写成 8 个 `part.1`，每个 524352 B。逻辑对象是 2 MiB，8 个分片合计约 4 MiB，所以它符合 4+4 的空间直觉。
 
-![RustFS 4+4 erasure set 中 4 个数据分片和 4 个校验分片跨 4 台机器 8 块盘放置，一台机器故障会同时丢失两块盘的 shard](https://img.f3dlife.com/blog/2026/06/29/rustfs-4plus4-failure-domain-4dda7041-075e-493f-8e75-727cb0729cc9.svg)
+![RustFS 4+4 erasure set 中 4 个数据分片和 4 个校验分片跨 4 台机器 8 块盘放置，一台机器故障会同时丢失两块盘的 shard](https://img.f3dlife.com/blog/2026/06/29/rustfs-4plus4-failure-domain-f88eed71-9cca-466b-ade8-ffd271e237bb.svg)
 Fig. 4+4 set 的故障域不是“机器数量”本身，而是 set 内丢失 shard 的数量；这个实验里每台机器在同一个 set 中有两块盘。
 
 纠删码利用率可以先用一个简单公式理解：
