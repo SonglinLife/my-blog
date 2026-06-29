@@ -222,6 +222,33 @@ Avoid:
 - Redaction and omission are allowed only when explicit: use `...`, `<redacted>`, or a sentence explaining what was omitted.
 - If a simplified representation helps, place it after the real snippet and label it `解释模型`, `伪结构`, or `为了说明的简化模型`; do not present it as a real file.
 
+### Named Artifact Completeness
+
+When the title, heading, or thesis names a concrete artifact, the section must explain the artifact itself, not only the fact that it exists.
+
+Artifacts include files, hidden files, internal objects, manifests, WALs, indexes, checkpoints, lock files, metadata records, protocol messages, API resources, database rows, queue entries, object-store keys, and config documents.
+
+For each named artifact, answer as many layers as the article claims to cover:
+
+```text
+1. Location: where it lives and how to find it.
+2. Outer format: file/object/table/message/container format.
+3. Payload: the real decoded content or schema.
+4. Writer: code path, command, component, or lifecycle event that creates or updates it.
+5. Reader: code path or component that consumes it.
+6. Lifecycle: when it appears, changes, is repaired, migrated, deleted, or ignored.
+7. Boundary: what it is not, and what similar artifact it should not be confused with.
+```
+
+Do not claim an artifact is explained if only its wrapper was inspected. For example, proving that a file is an `xl.meta` object wrapper does not explain the inline payload unless the payload schema or decoded content is shown.
+
+If a layer is not verified, say so plainly:
+
+```markdown
+已验证：这个对象的外层存储格式是 ...
+未验证：payload 的具体 schema 和读写生命周期，还需要继续从源码或解码输出确认。
+```
+
 ### Evidence Fidelity Examples
 
 Bad: this looks like a real `format.json`, but `setCount` and `setWidths` were invented as readable summaries.
@@ -301,6 +328,7 @@ Before creating or revising images for this mode, read `docs/technical-visual-st
 - [ ] The post starts from a concrete system question.
 - [ ] Version, environment, or assumptions are explicit.
 - [ ] There is at least one diagram, screenshot, source link, or verified command output for each major claim.
+- [ ] Every named artifact is explained at the claimed layer: location, wrapper, payload/schema, reader/writer, lifecycle, and boundary.
 - [ ] The article has a clear path through the system, not a pile of disconnected notes.
 - [ ] Evidence screenshots sit beside the claim they prove and include a "what to notice" sentence.
 - [ ] Image alt text and `Fig.` captions are meaningful.
