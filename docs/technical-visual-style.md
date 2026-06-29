@@ -139,6 +139,8 @@ The order matters:
 
 Do not put screenshots in a gallery at the end. Do not ask readers to infer why a screenshot exists.
 
+Do not alter screenshot contents for readability except by redacting or cropping. If a long JSON/log/source block is summarized in a diagram or caption, call it a summary and do not use invented field names that look like real output.
+
 ### When Screenshots Are Mandatory
 
 Use a screenshot, terminal render, or source excerpt when the post relies on:

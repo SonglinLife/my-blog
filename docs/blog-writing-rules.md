@@ -218,6 +218,53 @@ Avoid:
 - Link source code to stable tags or commits when possible.
 - If using logs or command output, capture real output. Redact secrets and private paths.
 - When explaining an inferred behavior, mark it as inference and say what evidence supports it.
+- Keep evidence faithful. Do not invent, rename, normalize, or fold fields inside JSON/YAML/log/source/output snippets for readability.
+- Redaction and omission are allowed only when explicit: use `...`, `<redacted>`, or a sentence explaining what was omitted.
+- If a simplified representation helps, place it after the real snippet and label it `解释模型`, `伪结构`, or `为了说明的简化模型`; do not present it as a real file.
+
+### Evidence Fidelity Examples
+
+Bad: this looks like a real `format.json`, but `setCount` and `setWidths` were invented as readable summaries.
+
+```json
+{
+  "id": "13c779ee-...",
+  "this": "63124b32-...",
+  "setCount": 1,
+  "setWidths": [8]
+}
+```
+
+Good: show the real shape, omit repetitive entries explicitly, and explain the simplification in prose.
+
+```json
+{
+  "version": "1",
+  "format": "xl",
+  "id": "13c779ee-...",
+  "xl": {
+    "this": "63124b32-...",
+    "sets": [
+      [
+        "63124b32-...",
+        "7cee30d3-...",
+        "... 6 more disk UUIDs omitted ..."
+      ]
+    ],
+    "distributionAlgo": "SIPMOD+PARITY"
+  }
+}
+```
+
+Good: if a compact model is useful, make it visibly not-source.
+
+```text
+解释模型，不是原始 JSON:
+deployment id: 13c779ee-...
+current disk: xl.this
+set count: len(xl.sets)
+set width: len(xl.sets[0])
+```
 
 ### Images And Captions
 
