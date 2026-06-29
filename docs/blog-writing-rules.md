@@ -268,14 +268,13 @@ If a layer is not verified, say so plainly:
 
 ### Evidence Fidelity Examples
 
-Bad: this looks like a real `format.json`, but `setCount` and `setWidths` were invented as readable summaries.
+Bad: this looks like a real `format.json`, but it adds readable summary fields that do not exist in the captured file.
 
 ```json
 {
   "id": "13c779ee-...",
   "this": "63124b32-...",
-  "setCount": 1,
-  "setWidths": [8]
+  "inventedSummary": "do not add fields that are not in the source"
 }
 ```
 
@@ -298,16 +297,6 @@ Good: show the real shape, omit repetitive entries explicitly, and explain the s
     "distributionAlgo": "SIPMOD+PARITY"
   }
 }
-```
-
-Good: if a compact model is useful, make it visibly not-source.
-
-```text
-解释模型，不是原始 JSON:
-deployment id: 13c779ee-...
-current disk: xl.this
-set count: len(xl.sets)
-set width: len(xl.sets[0])
 ```
 
 ### Images And Captions

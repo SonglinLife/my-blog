@@ -218,12 +218,16 @@ Use this mode when it fits the topic:
 - Visual plan: every long systems post needs a main orientation/workflow diagram near the top. For each planned image, specify its section, purpose, components/labels, source type (diagram, screenshot, terminal output, source excerpt), caption, and alt text.
 - Opening: start from the system's confusing object, behavior, or boundary, then state what path the post will trace. Avoid diary-style openings such as "我最近在看...", "一开始有个疑问...", "我用一个实验串了一遍...". Mention code version, environment, or assumptions early.
 - Structure: use numbered headings with a visible progression: `1 背景知识`, `2 工作流/架构`, `3 代码或实验验证`, `4 总结`, `参考资料`. For process posts, use `Step 1/2/3` headings so readers can follow the control flow.
+- Mechanism order: do not let a convenient evidence artifact become the article's entry point when it is not the system's real entry point. For startup/request/write/recovery topics, first follow the actual control path, then use disk files, database rows, object-store keys, logs, screenshots, or decoded metadata as evidence at the step where they appear. A heading like "look at what appeared on disk first" is usually wrong unless the article is explicitly about forensic inspection.
+- Revision discipline: after reorganizing a technical post, re-read the TOC, headings, opening, transition sentences, and figure captions together. Remove stale narrative leftovers that contradict the new path, even if the main heading was already fixed. Search for old phrasing when a user flags a structural issue.
 - Table of contents: for long posts, include a Markdown TOC near the top if the current site does not generate one automatically.
 - Exposition rhythm: explain one layer, show the evidence, then restate the implication. Alternate diagrams, commands/logs, code pointers, and short interpretation paragraphs.
 - Prose style: compact, declarative, and mechanism-first. Prefer "X 会导致 Y", "这里要看三个对象", "接下来沿着请求路径看" over self-narration about how the author discovered the question.
 - Evidence standard: prefer primary sources, runnable examples, source links with version tags, command output, logs, screenshots, or small reproduced environments. Do not present an implementation claim without evidence.
 - Source anchors: for public source code, prefer commit-pinned permalinks to exact lines or tight line ranges. Link text should include the file path and line range, and the surrounding sentence must state what the code proves. Avoid bare prose like "file X lines Y-Z" when a clickable permalink is available.
 - Evidence fidelity: never invent, rename, fold, normalize, or add fields in JSON/YAML/logs/source/output for readability. Evidence snippets must match captured source except for explicit redaction or clearly marked omission. Put simplified mental models after the real evidence and label them as such.
+- Anti-examples are for review guidance, not public exposition. Do not carry invented field names, bad snippets, or rejected phrasings from AGENTS/rules documents into a published article, even to warn against them, unless the article is explicitly about that mistake.
+- Build warnings: treat repeated build or content-loader warnings as product bugs, not harmless noise. First verify whether the source tree really contains the reported problem, then either fix the root cause or add a deterministic guardrail that fails before publication. If the cause is cache state, clean the responsible cache in the project script instead of relying on manual cleanup.
 - Named artifact completeness: when a title, heading, or thesis names a concrete artifact such as a file, object, manifest, WAL, index, checkpoint, metadata record, protocol message, or API resource, explain its full semantic stack: where it lives, outer storage/encoding, real payload/schema, who writes it, who reads it, lifecycle, and what it is not. If any layer is unverified, mark it as TODO or out of scope instead of implying the artifact is fully explained.
 - Diagrams and images: use a high-signal architecture or workflow image near the top, then repeat or crop the same diagram at relevant sections if it helps orient the reader. Center diagrams when the renderer supports it. Every image needs a caption beginning with `Fig.` and meaningful alt text.
 - Visual style: for systems diagrams, prefer large plain canvases, muted high-contrast blocks, explicit arrows, numbered steps, component names, file paths/API names, and a small color vocabulary. The diagram should explain ownership, control flow, data flow, or state change; it should not be decorative.
@@ -262,8 +266,10 @@ A blog change is done when:
 
 - The post has clean frontmatter.
 - The public article contains no internal notes.
+- The TOC, headings, opening, transitions, and captions all follow the same mechanism path; no stale wording from an older outline remains.
 - Images are public URLs and renderable.
 - Executable examples and expected-failure examples used by the article have been run and verified.
+- Repeated build/content warnings have either been fixed or converted into a deterministic check.
 - `npm run post:guardrails` passes.
 - `npm run post:check` passes.
 - `npm run build` passes.

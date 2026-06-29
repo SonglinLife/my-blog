@@ -36,7 +36,7 @@ Fig. RustFS 4 节点 8 磁盘实验拓扑：`RUSTFS_VOLUMES` 给出 endpoint 列
 
 ## 1 问题与环境
 
-本文只验证四类证据：磁盘上的真实文件、`format.json` 内容、`xl.meta` 解码输出、RustFS 源码里的启动/set 选择/pool metadata 入口。不覆盖 rebalance/decommission 的完整状态机。
+本文只验证四类证据：启动日志与 `RUSTFS_VOLUMES`、`format.json` 内容、一次 2 MiB PUT 后的 `xl.meta`/`part.1` 写入结果、RustFS 源码里的启动/set 选择/pool metadata 入口。不覆盖 rebalance/decommission 的完整状态机。
 
 要回答的问题是：
 
@@ -192,16 +192,7 @@ Fig. `format.json` 的真实结构：顶层 `id` 标识部署，`xl.sets[0]` 是
 }
 ```
 
-上面的 `"... 6 more disk UUIDs omitted ..."` 是明确省略，真实文件里这里还有 6 个 disk UUID。不要把 `setCount`、`setWidths` 当成真实字段；如果需要快速理解，可以用下面这个解释模型：
-
-```text
-解释模型，不是原始 JSON:
-deployment id = id
-current disk = xl.this
-set count = len(xl.sets)
-set width = len(xl.sets[0])
-distribution algorithm = xl.distributionAlgo
-```
+上面的 `"... 6 more disk UUIDs omitted ..."` 是明确省略，真实文件里这里还有 6 个 disk UUID。这里直接读真实字段：`id` 是部署 ID，`xl.this` 是当前磁盘 UUID，`xl.sets` 是 set 矩阵，`xl.distributionAlgo` 是分布算法。
 
 8 块盘的 `this` 正好是 8 个不同 UUID：
 
@@ -291,7 +282,7 @@ object name
 
 这也是为什么“只看目录”会误导：目录是写入后的形态，不是对象定位的规则。对象先通过 hash 进入某个 set，再在 set 内按纠删码布局写出 `xl.meta` 和 `part.1`。
 
-现在再看 2 MiB PUT 之后磁盘上真实出现了什么。这里要验证的是：8 块盘上都有用户对象 `xl.meta`，并且同一个对象在 8 块盘上各有一个 `part.1` 分片；截图里同时出现的 `format.json` 和 `pool.bin/xl.meta` 是系统元数据，后面会单独解释。
+沿着 PUT 路径走到落盘阶段，再检查写入结果。这里要验证的是：8 块盘上都有用户对象 `xl.meta`，并且同一个对象在 8 块盘上各有一个 `part.1` 分片；截图里同时出现的 `format.json` 和 `pool.bin/xl.meta` 是系统元数据，后面会单独解释。
 
 ```bash
 # cwd: <mount>/rustfs-dist
