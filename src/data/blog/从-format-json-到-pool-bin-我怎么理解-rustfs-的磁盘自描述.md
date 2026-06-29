@@ -58,6 +58,29 @@ Fig. RustFS 4 节点 8 磁盘实验拓扑：`RUSTFS_VOLUMES` 给出 endpoint 列
 | 上传对象 | `dist-bucket/dist-large-2m.bin` |
 | 对象逻辑大小 | 2097152 B，也就是 2 MiB |
 
+先把两个词钉住。
+
+**pool 是一组 disk endpoint 形成的容量集合，也是 RustFS 做容量生命周期管理的单位。** 一个集群可以有一个或多个 pool。新增容量、decommission、pool metadata reload 这类动作围绕 pool 展开。`pool.bin` 记录的就是 pool 列表和这些 pool 的生命周期状态。
+
+**set 是 pool 内部的对象放置组，也是纠删码的工作边界。** 一个 pool 会被切成一个或多个 set；每个 set 有固定数量的磁盘。对象写入时，RustFS 先用 object key hash 选择 set，再在这个 set 内做纠删码切分，把 `xl.meta` 和 `part.N` shard 写到 set 的磁盘上。
+
+在这篇实验里，8 个 disk endpoint 形成 1 个 pool，并且这个 pool 里只有 1 个 8 盘 set：
+
+```text
+pool 0
+  set 0
+    node1/disk1
+    node1/disk2
+    node2/disk1
+    node2/disk2
+    node3/disk1
+    node3/disk2
+    node4/disk1
+    node4/disk2
+```
+
+后面所有现象都围绕这个边界展开：`format.json` 让每块盘知道自己在 set 里的身份，`pool.bin` 让运行时知道 pool 的生命周期状态，PUT 对象时再由 object key hash 进入 set。
+
 下面所有输出都来自这个实验环境。为避免发布本机挂载路径，命令输出里的 `/data/rustfs-dist/` 前缀会显式省略成 `nodeN/diskN/` 这种实验拓扑路径；对象 data dir UUID 在路径里用 `<data-dir>` 标记。
 
 ## 2 启动入口：RUSTFS_VOLUMES 定义同一张拓扑图
@@ -545,9 +568,7 @@ usable = data_shards / (data_shards + parity_shards)
 
 ## 7 pool、set 与扩容/坏槽位
 
-pool 是容量和迁移的管理单位，set 是对象哈希和纠删码的工作边界。
-
-这两个概念放在一起，才能解释扩容和坏槽位问题。
+有了前面的定义，扩容和坏槽位问题就能落到两个边界上：pool 决定容量生命周期，set 决定对象放置和故障容忍。
 
 已有 pool 的 set 几何形状不是随手改变的。比如一个 pool 已经由若干个 8 盘 set 组成，它不是简单加一块盘就把旧 set 变成 9 盘 set。新增容量通常体现为新增 pool，再通过迁移、rebalance 或 decommission 类流程改变数据分布。
 
