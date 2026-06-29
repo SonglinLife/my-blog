@@ -2,7 +2,7 @@
 title: "图解 RustFS 磁盘自描述：从 format.json 到 pool.bin（2026）"
 author: F3D
 pubDatetime: 2026-06-29T15:23:56+08:00
-description: "沿一次 4 节点 8 磁盘实验，追踪 RustFS 如何用 RUSTFS_VOLUMES、format.json、set 和 xl.meta 定位对象。"
+description: "沿一次 4 节点 8 磁盘实验，追踪 RustFS 如何用 RUSTFS_VOLUMES、format.json、set、xl.meta 和 pool.bin 重建存储视图。"
 tags:
   - release
   - rustfs
@@ -15,7 +15,7 @@ RustFS 的 `.rustfs.sys/` 目录里，有两个很容易误判的对象：每盘
 
 如果只看目录结构，很容易把它们理解成某种中心元数据。但从启动拓扑、磁盘身份、对象 hash 和 `xl.meta/part.N` 的关系看，RustFS 的恢复模型更像一组分层规则。
 
-本文沿两条路径展开：启动路径解释节点如何恢复 pool/set/disk 视图；对象写入路径解释一个 PUT 如何落到 set 内的 `xl.meta` 和 `part.1`。
+本文沿三条路径展开：启动路径解释节点如何恢复 pool/set/disk 视图；对象写入路径解释一个 PUT 如何落到 set 内的 `xl.meta` 和 `part.1`；pool 元数据路径解释 `pool.bin` 存了什么，以及它为什么不是对象索引。
 
 实验拓扑：RustFS 源码 `main@acdf43937162b247619c6a32a5fe079146ca794d`，4 个节点，每个节点 2 块盘，一共 8 个 disk endpoint。实验形成 1 个 pool、1 个 set，上传一个 2 MiB 对象后观察磁盘文件和源码路径。
 
@@ -28,7 +28,7 @@ Fig. RustFS 4 节点 8 磁盘实验拓扑：`RUSTFS_VOLUMES` 给出 endpoint 列
 - [2 先看磁盘上真实出现了什么](#2-先看磁盘上真实出现了什么)
 - [3 启动路径：RUSTFS_VOLUMES 和 format.json 如何拼出拓扑](#3-启动路径rustfs_volumes-和-formatjson-如何拼出拓扑)
 - [4 写入路径：对象如何进入 set](#4-写入路径对象如何进入-set)
-- [5 pool.bin：内部对象，不是中心数据库](#5-poolbin内部对象不是中心数据库)
+- [5 pool.bin：pool 生命周期账本，不是对象索引](#5-poolbinpool-生命周期账本不是对象索引)
 - [6 纠删码边界：4+4、6+2、8+4 到底差在哪](#6-纠删码边界4484-到底差在哪)
 - [7 pool、set 与扩容/坏槽位](#7-poolset-与扩容坏槽位)
 - [8 小结](#8-小结)
@@ -36,14 +36,14 @@ Fig. RustFS 4 节点 8 磁盘实验拓扑：`RUSTFS_VOLUMES` 给出 endpoint 列
 
 ## 1 问题与环境
 
-本文只验证三类证据：磁盘上的真实文件、`xl.meta` 解码输出、RustFS 源码里的启动和 set 选择入口。不覆盖 rebalance/decommission 的完整状态机。
+本文只验证四类证据：磁盘上的真实文件、`format.json` 内容、`xl.meta` 解码输出、RustFS 源码里的启动/set 选择/pool metadata 入口。不覆盖 rebalance/decommission 的完整状态机。
 
 要回答的问题是：
 
 1. 节点从哪里知道集群有哪些磁盘？
 2. 每块盘怎么证明“我属于这个部署、我是 set 里的第几块盘”？
 3. 一个对象怎么从名字映射到某个 set？
-4. `pool.bin` 是中心元数据，还是内部对象？
+4. `pool.bin` 存了什么，它在架构里处在哪一层？
 5. 纠删码里的 `6+2`、`4+4`、`8+4` 容忍的是盘、机器，还是别的边界？
 
 实验环境如下：
@@ -216,7 +216,7 @@ for i in 0..set_count {
 save_format_file_all(disks, &fms).await?;
 ```
 
-证据锚点：`crates/ecstore/src/store_init.rs` 第 130-152 行。
+证据锚点：`crates/ecstore/src/store_init.rs` 第 129-150 行。
 
 所以 RustFS 的“磁盘自描述”不是说每块盘保存了所有动态状态，而是说每块盘保存了足够稳定的身份和布局信息：
 
@@ -234,7 +234,7 @@ distributionAlgo: 对象分布算法是什么
 
 有了 pool/set/disk 视图之后，对象写入还需要解决另一个问题：这个 object key 进入哪个 set？
 
-RustFS 在 `Sets` 里有一个很直接的路径：
+RustFS 在 `Sets` 里有一个很直接的路径。下面摘出两个相关函数；它们在源码中间隔着 storage info 相关函数，这里只保留 set 选择路径：
 
 ```rust
 pub fn get_disks_by_key(&self, key: &str) -> Arc<SetDisks> {
@@ -272,7 +272,7 @@ object name
 
 这也是为什么“只看目录”会误导：目录是写入后的形态，不是对象定位的规则。对象先通过 hash 进入某个 set，再在 set 内按纠删码布局写出 `xl.meta` 和 `part.1`。
 
-## 5 pool.bin：内部对象，不是中心数据库
+## 5 pool.bin：pool 生命周期账本，不是对象索引
 
 `pool.bin` 容易让人误会。它在磁盘上看起来像一个特殊文件：
 
@@ -280,7 +280,13 @@ object name
 .rustfs.sys/pool.bin/xl.meta
 ```
 
-这里要验证的是：`pool.bin` 不是一个只存在于某台机器上的中心数据库文件；从 `xl.meta` 解码结果看，它走的是 RustFS 内部对象元数据路径，并且这个样本里数据被 inline 到 `xl.meta`。
+这里要拆成三层看：
+
+1. 磁盘上看到的是 `xl.meta` 外壳；
+2. 对象层读出来的是 `.rustfs.sys` bucket 里的 `pool.bin` 对象；
+3. 对象 payload 是 RustFS 自己编码的 `PoolMeta`。
+
+先看外壳。`pool.bin` 不是一个只存在于某台机器上的中心数据库文件；从 `xl.meta` 解码结果看，它走的是 RustFS 内部对象元数据路径，并且这个样本里数据被 inline 到 `xl.meta`。
 
 ```bash
 cargo run -p rustfs-filemeta --example dump_fileinfo -- \
@@ -326,6 +332,191 @@ meta[etag]=a0e2aa19d5bf051548e8a2983a6ceeec
 
 源码测试里也有针对 `.rustfs.sys/pool.bin` 的兼容解析用例，调用的是 `into_fileinfo(".rustfs.sys", "pool.bin", ...)`。证据锚点：`crates/filemeta/src/filemeta.rs` 第 1144-1165 行。
 
+再看对象层。`pool.bin` 这个名字来自 `POOL_META_NAME`，格式号和版本号也在同一个文件里定义：
+
+```rust
+pub const POOL_META_NAME: &str = "pool.bin";
+pub const POOL_META_FORMAT: u16 = 1;
+pub const POOL_META_VERSION: u16 = 1;
+```
+
+证据锚点：`crates/ecstore/src/pools.rs` 第 84-86 行。
+
+读写它时，RustFS 没有直接打开某个本地路径，而是走 `read_config` / `save_config`。这两个函数固定使用 `RUSTFS_META_BUCKET`，也就是 `.rustfs.sys`：
+
+```rust
+pub async fn read_config<S: ObjectIO>(api: Arc<S>, file: &str) -> Result<Vec<u8>> {
+    let (data, _obj) = read_config_with_metadata(api, file, &ObjectOptions::default()).await?;
+    Ok(data)
+}
+
+pub async fn save_config<S: ObjectIO>(api: Arc<S>, file: &str, data: Vec<u8>) -> Result<()> {
+    save_config_with_opts(
+        api,
+        file,
+        data,
+        &ObjectOptions {
+            max_parity: true,
+            ..Default::default()
+        },
+    )
+    .await
+}
+```
+
+证据锚点：`crates/ecstore/src/config/com.rs` 第 185-241 行；`.rustfs.sys` 常量在 `crates/ecstore/src/disk/mod.rs` 第 26 行。
+
+所以 `pool.bin` 的“文件位置”不是它的完整语义。更准确地说，它是一个 RustFS config 对象：
+
+```text
+解释模型，不是原始输出:
+bucket: .rustfs.sys
+object: pool.bin
+disk representation: .rustfs.sys/pool.bin/xl.meta
+write path: save_config(pool, "pool.bin", bytes)
+read path: read_config(pool, "pool.bin")
+```
+
+最后看 payload。`PoolMeta::save` 会先写 4 字节头部，再把 `PersistedPoolMeta` 用 MessagePack 编码进去：
+
+```rust
+let mut data = Vec::new();
+data.write_u16::<LittleEndian>(POOL_META_FORMAT)?;
+data.write_u16::<LittleEndian>(POOL_META_VERSION)?;
+let mut buf = Vec::new();
+PersistedPoolMeta::from(self).serialize(&mut Serializer::new(&mut buf))?;
+data.write_all(&buf)?;
+
+for pool in pools {
+    save_config(pool, POOL_META_NAME, data.clone()).await?;
+}
+```
+
+证据锚点：`crates/ecstore/src/pools.rs` 第 844-857 行。
+
+`PoolMeta::load` 则反过来读取 `pool.bin`，校验前 4 字节的格式号和版本号，然后从 `data[4..]` 开始解 `PersistedPoolMeta`：
+
+```rust
+let format = LittleEndian::read_u16(&data[0..2]);
+if format != POOL_META_FORMAT {
+    return Err(Error::other(format!("pool metadata load failed: unknown format {format}")));
+}
+let version = LittleEndian::read_u16(&data[2..4]);
+if version != POOL_META_VERSION {
+    return Err(Error::other(format!("pool metadata load failed: unknown version {version}")));
+}
+
+*self = Self::decode_pool_meta_payload(&data[4..])?;
+```
+
+证据锚点：`crates/ecstore/src/pools.rs` 第 807-841 行。
+
+真正持久化的结构不是 `format.json` 里的 set 拓扑，而是 pool 状态数组：
+
+```rust
+struct PersistedPoolMeta {
+    pub version: u16,
+    pub pools: Vec<PersistedPoolStatus>,
+}
+
+struct PersistedPoolStatus {
+    #[serde(rename = "id")]
+    pub id: usize,
+    #[serde(rename = "cmdline")]
+    pub cmd_line: String,
+    #[serde(rename = "lastUpdate", with = "time::serde::rfc3339")]
+    pub last_update: OffsetDateTime,
+    #[serde(rename = "decommissionInfo")]
+    pub decommission: Option<PersistedPoolDecommissionInfo>,
+}
+```
+
+证据锚点：`crates/ecstore/src/pools.rs` 第 590-606 行。
+
+如果 pool 正在 decommission，`decommissionInfo` 里还会持久化开始时间、容量进度、完成/失败/取消状态、待处理 bucket、已处理 bucket、当前 bucket/prefix/object，以及对象数和字节数统计。证据锚点：`crates/ecstore/src/pools.rs` 第 608-642 行。
+
+也就是说，`pool.bin` 的内容可以概括成：
+
+```text
+解释模型，不是原始 payload:
+u16 little-endian: POOL_META_FORMAT = 1
+u16 little-endian: POOL_META_VERSION = 1
+messagepack(PersistedPoolMeta):
+  version
+  pools[]
+    id
+    cmdline
+    lastUpdate
+    decommissionInfo?
+```
+
+这段是解释模型，不是从 `pool.bin/xl.meta` 里直接打印出来的 JSON。已验证的是：磁盘外壳是 `xl.meta`，源码写入的 payload schema 是 `PersistedPoolMeta`，编码方式是 `rmp_serde` MessagePack。本文没有用对象读路径把实验样本的 `pool.bin` payload 反解成可读 JSON。
+
+它在架构中的位置也因此清楚了：`format.json` 解决“这块盘是谁、属于哪个 set”；`pool.bin` 解决“当前有哪些 pool，以及这些 pool 的生命周期状态如何”。启动时，`ECStore::init` 会加载 `PoolMeta`，校验后写入运行时的 `ECStore.pool_meta`：
+
+```rust
+let mut meta = PoolMeta::default();
+resolve_store_init_stage_result(
+    meta.load(
+        self.pools
+            .first()
+            .cloned()
+            .ok_or_else(|| Error::other("store init failed: no storage pools available"))?,
+        self.pools.clone(),
+    )
+    .await,
+    "load_pool_meta",
+)?;
+let update = meta.validate(self.pools.clone())?;
+```
+
+证据锚点：`crates/ecstore/src/store/init.rs` 第 362-374 行。
+
+在 decommission 路径里，RustFS 会更新 `pool_meta`，保存到所有 pool，然后通知其他节点 reload：
+
+```rust
+pool_meta.save(self.pools.clone()).await?;
+
+if let Some(notification_sys) = get_global_notification_sys()
+    && let Err(err) =
+        resolve_decommission_pool_meta_reload_result(notification_sys.reload_pool_meta().await, "start_decommission")
+{
+    warn!("{err}");
+}
+```
+
+证据锚点：`crates/ecstore/src/pools.rs` 第 2574-2590 行。
+
+peer 侧的 reload 会重新从对象层加载 `pool.bin`，再替换内存里的 `pool_meta`：
+
+```rust
+pub async fn reload_pool_meta(&self) -> Result<()> {
+    let mut meta = PoolMeta::default();
+    resolve_store_rebalance_pool_meta_reload_result(
+        meta.load(self.pools[0].clone(), self.pools.clone()).await,
+        "reload_pool_meta",
+    )?;
+
+    let mut pool_meta = self.pool_meta.write().await;
+    *pool_meta = meta;
+    Ok(())
+}
+```
+
+证据锚点：`crates/ecstore/src/store/rebalance.rs` 第 625-635 行。
+
+把这些证据合起来，`pool.bin` 的语义栈是：
+
+| 层 | 结论 |
+| --- | --- |
+| 位置 | `.rustfs.sys/pool.bin/xl.meta` 是磁盘上的对象元数据外壳 |
+| 外层格式 | `xl.meta`；小对象样本里 payload inline 在元数据里 |
+| 对象路径 | `.rustfs.sys` bucket 下的 `pool.bin` config 对象 |
+| payload | 4 字节 little-endian 头部 + MessagePack 编码的 `PersistedPoolMeta` |
+| 写入者 | 初始化校验需要更新时、decommission 状态变化时调用 `PoolMeta::save` |
+| 读取者 | 启动和 peer reload 时调用 `PoolMeta::load` |
+| 边界 | 不记录每个业务对象在哪里，也不替代 `format.json` 的磁盘身份和 set 布局 |
+
 因此可以这样区分：
 
 ```text
@@ -338,10 +529,12 @@ format.json
 pool.bin
   internal RustFS object
   stored under .rustfs.sys
-  represented by xl.meta and possibly inline data
+  represented on disk by xl.meta and possibly inline data
+  payload = 4-byte header + MessagePack PersistedPoolMeta
+  loaded into ECStore.pool_meta
 ```
 
-**`format.json` 更像每块盘的身份证；`pool.bin` 更像 RustFS 自己存在对象层里的 pool 状态文件。**
+**`format.json` 更像每块盘的身份证；`pool.bin` 更像 RustFS 自己存在对象层里的 pool 生命周期账本。** 它不是对象索引，也不决定某个业务对象进入哪个 set；对象定位仍然靠 deployment id、object name hash 和 set 布局。
 
 ## 6 纠删码边界：4+4、6+2、8+4 到底差在哪
 
@@ -398,7 +591,20 @@ pub fn from_volumes<T: AsRef<str>>(args: &[T], set_drive_count: usize) -> Result
 
     let total_sizes = get_total_sizes(&arg_patterns);
     let set_indexes = get_set_indexes(args, &total_sizes, set_drive_count, &arg_patterns)?;
-    ...
+
+    let mut endpoints = Vec::new();
+    for ap in arg_patterns.iter() {
+        let aps = ap.expand();
+        for bs in aps {
+            endpoints.push(bs.join(""));
+        }
+    }
+
+    Ok(EndpointSet {
+        set_indexes,
+        _arg_patterns: arg_patterns,
+        endpoints,
+    })
 }
 ```
 
@@ -434,11 +640,12 @@ object PUT path:
 
 metadata persistence:
   format.json = per-disk identity and set layout
-  pool.bin = internal object under .rustfs.sys
+  pool.bin = internal PoolMeta object under .rustfs.sys
+  pool.bin payload = 4-byte header + MessagePack PersistedPoolMeta
   xl.meta = object metadata and sometimes inline data
 ```
 
-实验输出已经验证：8 块盘都有 `format.json`，同一个 deployment id 下有不同 `this`；2 MiB 对象在 4+4 下写成 8 个 shard；`pool.bin` 可以按内部对象的 `xl.meta` 解码。
+实验输出已经验证：8 块盘都有 `format.json`，同一个 deployment id 下有不同 `this`；2 MiB 对象在 4+4 下写成 8 个 shard；`pool.bin` 可以按内部对象的 `xl.meta` 解码。源码路径进一步说明：它的 payload 是 `PoolMeta`，用于记录 pool 生命周期状态，不是业务对象索引。
 
 还有一些没有在这篇里展开：比如 rebalance/decommission 的完整状态机、远端 disk RPC 的认证与读写路径、坏盘 heal 时如何选择参考 format。这些更适合单独拆成后续文章。
 
@@ -448,6 +655,10 @@ metadata persistence:
 
 - RustFS source `acdf43937162b247619c6a32a5fe079146ca794d`: [`rustfs/src/config/cli.rs`](https://github.com/SonglinLife/rustfs/blob/acdf43937162b247619c6a32a5fe079146ca794d/rustfs/src/config/cli.rs)
 - RustFS source `acdf43937162b247619c6a32a5fe079146ca794d`: [`crates/ecstore/src/store_init.rs`](https://github.com/SonglinLife/rustfs/blob/acdf43937162b247619c6a32a5fe079146ca794d/crates/ecstore/src/store_init.rs)
+- RustFS source `acdf43937162b247619c6a32a5fe079146ca794d`: [`crates/ecstore/src/store/init.rs`](https://github.com/SonglinLife/rustfs/blob/acdf43937162b247619c6a32a5fe079146ca794d/crates/ecstore/src/store/init.rs)
+- RustFS source `acdf43937162b247619c6a32a5fe079146ca794d`: [`crates/ecstore/src/pools.rs`](https://github.com/SonglinLife/rustfs/blob/acdf43937162b247619c6a32a5fe079146ca794d/crates/ecstore/src/pools.rs)
+- RustFS source `acdf43937162b247619c6a32a5fe079146ca794d`: [`crates/ecstore/src/config/com.rs`](https://github.com/SonglinLife/rustfs/blob/acdf43937162b247619c6a32a5fe079146ca794d/crates/ecstore/src/config/com.rs)
+- RustFS source `acdf43937162b247619c6a32a5fe079146ca794d`: [`crates/ecstore/src/store/rebalance.rs`](https://github.com/SonglinLife/rustfs/blob/acdf43937162b247619c6a32a5fe079146ca794d/crates/ecstore/src/store/rebalance.rs)
 - RustFS source `acdf43937162b247619c6a32a5fe079146ca794d`: [`crates/ecstore/src/sets.rs`](https://github.com/SonglinLife/rustfs/blob/acdf43937162b247619c6a32a5fe079146ca794d/crates/ecstore/src/sets.rs)
 - RustFS source `acdf43937162b247619c6a32a5fe079146ca794d`: [`crates/ecstore/src/disks_layout.rs`](https://github.com/SonglinLife/rustfs/blob/acdf43937162b247619c6a32a5fe079146ca794d/crates/ecstore/src/disks_layout.rs)
 - RustFS source `acdf43937162b247619c6a32a5fe079146ca794d`: [`crates/filemeta/src/filemeta.rs`](https://github.com/SonglinLife/rustfs/blob/acdf43937162b247619c6a32a5fe079146ca794d/crates/filemeta/src/filemeta.rs)
