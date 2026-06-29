@@ -239,7 +239,7 @@ Use this mode when it fits the topic:
 - Highlighting: use `**bold**` only for key entities, observations, or conclusions; avoid styling whole paragraphs. For critical code terms, paths, and state transitions, use backticks.
 - Language texture: Chinese main text can keep necessary English technical terms inline, such as `scheduling cycle`, `binding cycle`, `metadata engine`, `object store`, `CSI plugin`, or `mount pod`. Define them once, then reuse consistently.
 - Series posts: if the topic naturally grows, make it a numbered series with cross-links at the top. Each part still needs a self-contained problem, scope, and conclusion.
-- Closing: summarize what was proven, what remains uncertain, and where to read next. Keep references under `参考资料`; use official docs, source code, design docs, and previous posts.
+- Closing: end with the mechanism conclusion and evidence-backed boundary. Do not expose writing plans, scope-management phrases, or meta commentary such as "this article stops here", "not expanded in this post", "these can become future articles", or similar drafting language. If a limitation matters, state it as a technical boundary in the relevant section rather than as a closing disclaimer. Keep references under `参考资料`; use official docs, source code, design docs, and previous posts.
 - Layout restraint: plain article layout, dense but readable. Avoid landing-page copy, decorative cards, stock imagery, and generic AI-generated illustrations for technical proof.
 
 ## Repository Map
@@ -267,6 +267,7 @@ A blog change is done when:
 - The post has clean frontmatter.
 - The public article contains no internal notes.
 - The TOC, headings, opening, transitions, and captions all follow the same mechanism path; no stale wording from an older outline remains.
+- The conclusion contains no drafting/meta scope language such as future-article plans, "this post stops here", or "not covered here" disclaimers.
 - Images are public URLs and renderable.
 - Executable examples and expected-failure examples used by the article have been run and verified.
 - Repeated build/content warnings have either been fixed or converted into a deterministic check.

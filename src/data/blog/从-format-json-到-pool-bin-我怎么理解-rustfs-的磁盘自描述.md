@@ -654,11 +654,7 @@ object PUT path:
     -> write xl.meta and part.N shards
 ```
 
-实验输出已经验证：8 块盘都有 `format.json`，同一个 deployment id 下有不同 `this`；2 MiB 对象在 4+4 下写成 8 个 shard；`pool.bin` 可以按内部对象的 `xl.meta` 解码。源码路径进一步说明：它持久化的是 `PoolMeta`，用于记录 pool 生命周期状态，不是业务对象索引。
-
-还有一些没有在这篇里展开：比如 rebalance/decommission 的完整状态机、远端 disk RPC 的认证与读写路径、坏盘 heal 时如何选择参考 format。这些更适合单独拆成后续文章。
-
-这篇先停在一个结论上：**RustFS 的“自描述”不是没有集群拓扑，而是用 `RUSTFS_VOLUMES` 给出预期拓扑，用 `format.json` 固化磁盘身份和 set 布局，用 `pool.bin` 持久化 pool 生命周期状态，再用对象哈希和 `xl.meta/part.N` 完成每次写入。**
+实验输出和源码路径共同指向同一个结论：**RustFS 的“自描述”不是没有集群拓扑，而是把拓扑分散到几个层次里。** `RUSTFS_VOLUMES` 给出预期 endpoint 列表；`format.json` 固化每块盘的 deployment、set 和 disk 身份；`pool.bin` 持久化 pool 生命周期状态；对象写入时再用 object key hash、set 布局和 `xl.meta/part.N` 完成数据放置。
 
 ## 参考资料
 
