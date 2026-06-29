@@ -1,0 +1,104 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc">
+  <title id="title">RustFS PUT path from S3 client to erasure set and disk metadata</title>
+  <desc id="desc">A technical diagram showing S3 client, RustFS node, RUSTFS_VOLUMES, format.json, set selection, xl.meta, pool.bin, and part.1 shards across four nodes and eight disks.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth">
+      <path d="M2,2 L10,6 L2,10 Z" fill="#64b5f6"/>
+    </marker>
+    <marker id="arrow-muted" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth">
+      <path d="M2,2 L10,6 L2,10 Z" fill="#9aa4b2"/>
+    </marker>
+    <style>
+      .bg { fill: #0f172a; }
+      .panel { fill: #111c33; stroke: #334155; stroke-width: 2; rx: 18; }
+      .node { fill: #dbeafe; stroke: #60a5fa; stroke-width: 2; rx: 14; }
+      .client { fill: #dcfce7; stroke: #4ade80; stroke-width: 2; rx: 14; }
+      .meta { fill: #fef3c7; stroke: #f59e0b; stroke-width: 2; rx: 10; }
+      .disk { fill: #f8fafc; stroke: #94a3b8; stroke-width: 2; rx: 10; }
+      .set { fill: #172554; stroke: #38bdf8; stroke-width: 3; rx: 18; }
+      .text { fill: #e5edf7; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+      .dark { fill: #0f172a; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+      .muted { fill: #aab7c8; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+      .small { font-size: 24px; }
+      .tiny { font-size: 19px; }
+      .label { font-size: 28px; font-weight: 700; }
+      .title { font-size: 42px; font-weight: 800; }
+      .step { fill: #38bdf8; }
+      .arrow { stroke: #64b5f6; stroke-width: 4; fill: none; marker-end: url(#arrow); }
+      .arrow-muted { stroke: #9aa4b2; stroke-width: 3; fill: none; marker-end: url(#arrow-muted); stroke-dasharray: 8 8; }
+    </style>
+  </defs>
+
+  <rect class="bg" x="0" y="0" width="1600" height="900"/>
+  <text class="text title" x="70" y="70">RustFS object PUT path: topology, self-description, and shards</text>
+  <text class="muted small" x="70" y="112">Lab shape: 4 nodes x 2 disks, 1 pool, 1 set, 8 shards. Object sample: 2 MiB.</text>
+
+  <rect class="client" x="70" y="178" width="250" height="110"/>
+  <text class="dark label" x="105" y="224">S3 client</text>
+  <text class="dark tiny" x="105" y="258">PUT dist-large-2m.bin</text>
+
+  <rect class="node" x="430" y="160" width="330" height="145"/>
+  <text class="dark label" x="470" y="207">Any RustFS node</text>
+  <text class="dark tiny" x="470" y="243">S3 API + storage node</text>
+  <text class="dark tiny" x="470" y="272">internode RPC fan-out</text>
+
+  <rect class="meta" x="430" y="370" width="330" height="120"/>
+  <text class="dark label" x="470" y="418">RUSTFS_VOLUMES</text>
+  <text class="dark tiny" x="470" y="454">same endpoint list on nodes</text>
+
+  <rect class="meta" x="830" y="160" width="340" height="145"/>
+  <text class="dark label" x="870" y="207">format.json</text>
+  <text class="dark tiny" x="870" y="243">deployment id</text>
+  <text class="dark tiny" x="870" y="272">this + sets + distributionAlgo</text>
+
+  <rect class="set" x="830" y="370" width="650" height="405"/>
+  <text class="text label" x="870" y="418">pool 0 / set 0</text>
+  <text class="muted tiny" x="870" y="450">set_index = sip_hash(object_name, set_count, deployment_id)</text>
+
+  <g transform="translate(870 490)">
+    <rect class="disk" x="0" y="0" width="250" height="62"/>
+    <text class="dark tiny" x="18" y="38">node1/disk1  part.1</text>
+    <rect class="disk" x="300" y="0" width="250" height="62"/>
+    <text class="dark tiny" x="318" y="38">node1/disk2  part.1</text>
+    <rect class="disk" x="0" y="82" width="250" height="62"/>
+    <text class="dark tiny" x="18" y="120">node2/disk1  part.1</text>
+    <rect class="disk" x="300" y="82" width="250" height="62"/>
+    <text class="dark tiny" x="318" y="120">node2/disk2  part.1</text>
+    <rect class="disk" x="0" y="164" width="250" height="62"/>
+    <text class="dark tiny" x="18" y="202">node3/disk1  part.1</text>
+    <rect class="disk" x="300" y="164" width="250" height="62"/>
+    <text class="dark tiny" x="318" y="202">node3/disk2  part.1</text>
+    <rect class="disk" x="0" y="246" width="250" height="62"/>
+    <text class="dark tiny" x="18" y="284">node4/disk1  part.1</text>
+    <rect class="disk" x="300" y="246" width="250" height="62"/>
+    <text class="dark tiny" x="318" y="284">node4/disk2  part.1</text>
+  </g>
+
+  <rect class="meta" x="70" y="590" width="650" height="185"/>
+  <text class="dark label" x="110" y="638">Per-object metadata</text>
+  <text class="dark tiny" x="110" y="677">bucket/object/xl.meta: logical size, etag, parts, erasure metadata</text>
+  <text class="dark tiny" x="110" y="716">.rustfs.sys/pool.bin/xl.meta: internal pool metadata object</text>
+  <text class="dark tiny" x="110" y="752">small internal data may be inline in xl.meta</text>
+
+  <circle class="step" cx="365" cy="232" r="20"/>
+  <text class="dark tiny" x="358" y="240">1</text>
+  <path class="arrow" d="M320 232 C350 232, 385 232, 430 232"/>
+
+  <circle class="step" cx="800" cy="232" r="20"/>
+  <text class="dark tiny" x="793" y="240">2</text>
+  <path class="arrow-muted" d="M760 232 C790 232, 805 232, 830 232"/>
+
+  <circle class="step" cx="800" cy="430" r="20"/>
+  <text class="dark tiny" x="793" y="438">3</text>
+  <path class="arrow-muted" d="M760 430 C790 430, 805 430, 830 430"/>
+
+  <circle class="step" cx="1185" cy="338" r="20"/>
+  <text class="dark tiny" x="1178" y="346">4</text>
+  <path class="arrow" d="M1000 305 C1040 335, 1100 360, 1180 370"/>
+
+  <circle class="step" cx="745" cy="650" r="20"/>
+  <text class="dark tiny" x="738" y="658">5</text>
+  <path class="arrow-muted" d="M720 665 C760 690, 805 705, 860 710"/>
+
+  <text class="muted tiny" x="73" y="835">Solid arrow: request/data path. Dashed arrow: metadata/topology lookup or persisted internal object.</text>
+</svg>

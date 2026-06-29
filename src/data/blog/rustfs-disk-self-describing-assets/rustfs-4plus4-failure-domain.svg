@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc">
+  <title id="title">RustFS 4 plus 4 erasure shards across four nodes and eight disks</title>
+  <desc id="desc">A technical diagram showing four data shards and four parity shards placed on eight disks across four nodes, with one node failure removing two shards.</desc>
+  <defs>
+    <style>
+      .bg { fill: #0f172a; }
+      .node { fill: #111c33; stroke: #334155; stroke-width: 2; rx: 18; }
+      .data { fill: #bfdbfe; stroke: #60a5fa; stroke-width: 2; rx: 12; }
+      .parity { fill: #fde68a; stroke: #f59e0b; stroke-width: 2; rx: 12; }
+      .lost { fill: #fecaca; stroke: #ef4444; stroke-width: 3; rx: 12; }
+      .text { fill: #e5edf7; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+      .muted { fill: #aab7c8; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+      .dark { fill: #0f172a; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+      .title { font-size: 42px; font-weight: 800; }
+      .label { font-size: 28px; font-weight: 700; }
+      .small { font-size: 23px; }
+      .tiny { font-size: 19px; }
+      .formula { fill: #dcfce7; stroke: #4ade80; stroke-width: 2; rx: 14; }
+    </style>
+  </defs>
+
+  <rect class="bg" width="1600" height="900"/>
+  <text class="text title" x="70" y="76">4+4 erasure set: capacity, shards, and failure domain</text>
+  <text class="muted small" x="70" y="118">One 2 MiB object becomes 8 shards in this set. Data shards = 4, parity shards = 4.</text>
+
+  <rect class="formula" x="70" y="165" width="560" height="110"/>
+  <text class="dark label" x="105" y="213">Capacity rule</text>
+  <text class="dark small" x="105" y="249">usable = data / (data + parity) = 4 / 8 = 50%</text>
+
+  <rect class="formula" x="710" y="165" width="760" height="110"/>
+  <text class="dark label" x="745" y="213">Failure rule</text>
+  <text class="dark small" x="745" y="249">tolerance is missing shards per set, not abstract machine count</text>
+
+  <g transform="translate(70 340)">
+    <rect class="node" x="0" y="0" width="330" height="360"/>
+    <text class="text label" x="30" y="48">node1</text>
+    <rect class="lost" x="30" y="90" width="270" height="82"/>
+    <text class="dark label" x="58" y="140">disk1  D1 lost</text>
+    <rect class="lost" x="30" y="205" width="270" height="82"/>
+    <text class="dark label" x="58" y="255">disk2  D2 lost</text>
+    <text class="muted tiny" x="30" y="325">one node failure = two shards here</text>
+
+    <rect class="node" x="390" y="0" width="330" height="360"/>
+    <text class="text label" x="420" y="48">node2</text>
+    <rect class="data" x="420" y="90" width="270" height="82"/>
+    <text class="dark label" x="448" y="140">disk1  D3</text>
+    <rect class="data" x="420" y="205" width="270" height="82"/>
+    <text class="dark label" x="448" y="255">disk2  D4</text>
+
+    <rect class="node" x="780" y="0" width="330" height="360"/>
+    <text class="text label" x="810" y="48">node3</text>
+    <rect class="parity" x="810" y="90" width="270" height="82"/>
+    <text class="dark label" x="838" y="140">disk1  P1</text>
+    <rect class="parity" x="810" y="205" width="270" height="82"/>
+    <text class="dark label" x="838" y="255">disk2  P2</text>
+
+    <rect class="node" x="1170" y="0" width="330" height="360"/>
+    <text class="text label" x="1200" y="48">node4</text>
+    <rect class="parity" x="1200" y="90" width="270" height="82"/>
+    <text class="dark label" x="1228" y="140">disk1  P3</text>
+    <rect class="parity" x="1200" y="205" width="270" height="82"/>
+    <text class="dark label" x="1228" y="255">disk2  P4</text>
+  </g>
+
+  <text class="muted small" x="70" y="770">In this lab layout, each node owns two disks inside the same set.</text>
+  <text class="muted small" x="70" y="808">For 6+2 on the same host-to-shard shape, losing two machines could remove four shards and exceed parity.</text>
+</svg>

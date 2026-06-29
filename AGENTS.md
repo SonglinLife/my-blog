@@ -204,6 +204,36 @@ Guidelines:
 - Keep paragraphs short enough for mobile reading.
 - Use lists for dense comparisons, not for every paragraph.
 
+## Technical Deep-Dive Style
+
+For infrastructure posts, especially Kubernetes, storage, Linux, networking, Rust internals, and distributed systems, use this project's internal technical deep-dive style. Do not treat any external blog as a runtime style source while drafting.
+
+Important boundary: do not copy another author's sentences, signature phrases, disclaimers, badges, diagrams, screenshots, or visual assets. Do not attempt to impersonate another author. Use the durable craft patterns below in this blog's own voice.
+
+Use this mode when it fits the topic:
+
+- Title style: concrete, searchable, and scoped. Prefer forms like `图解/源码解析/实践笔记/设计与实现/从 X 看 Y/当 X 时，背后发生了什么（YYYY）`. Include the year for posts tied to a specific software version or ecosystem moment.
+- Pre-draft gate: before writing or substantially revising a technical deep-dive, first create an outline that includes the system question, tested version/environment, evidence plan, and visual plan. Do not start prose-only drafting until this plan exists.
+- Evidence plan: every major claim needs at least one anchor: primary source link, source file/function/version, real command output, log, screenshot, measured table, or reproducible example. Mark unverified claims as TODO instead of smoothing over them.
+- Visual plan: every long systems post needs a main orientation/workflow diagram near the top. For each planned image, specify its section, purpose, components/labels, source type (diagram, screenshot, terminal output, source excerpt), caption, and alt text.
+- Opening: start from the system's confusing object, behavior, or boundary, then state what path the post will trace. Avoid diary-style openings such as "我最近在看...", "一开始有个疑问...", "我用一个实验串了一遍...". Mention code version, environment, or assumptions early.
+- Structure: use numbered headings with a visible progression: `1 背景知识`, `2 工作流/架构`, `3 代码或实验验证`, `4 总结`, `参考资料`. For process posts, use `Step 1/2/3` headings so readers can follow the control flow.
+- Table of contents: for long posts, include a Markdown TOC near the top if the current site does not generate one automatically.
+- Exposition rhythm: explain one layer, show the evidence, then restate the implication. Alternate diagrams, commands/logs, code pointers, and short interpretation paragraphs.
+- Prose style: compact, declarative, and mechanism-first. Prefer "X 会导致 Y", "这里要看三个对象", "接下来沿着请求路径看" over self-narration about how the author discovered the question.
+- Evidence standard: prefer primary sources, runnable examples, source links with version tags, command output, logs, screenshots, or small reproduced environments. Do not present an implementation claim without evidence.
+- Diagrams and images: use a high-signal architecture or workflow image near the top, then repeat or crop the same diagram at relevant sections if it helps orient the reader. Center diagrams when the renderer supports it. Every image needs a caption beginning with `Fig.` and meaningful alt text.
+- Visual style: for systems diagrams, prefer large plain canvases, muted high-contrast blocks, explicit arrows, numbered steps, component names, file paths/API names, and a small color vocabulary. The diagram should explain ownership, control flow, data flow, or state change; it should not be decorative.
+- Diagram workflow: use editable/reproducible diagrams when labels matter. Use screenshots only as evidence of actual UI, object-store state, metrics, logs, or command output. Do not use AI-generated photorealistic images, generic stock images, fake dashboards, or fake terminal output for technical proof.
+- Screenshot placement: treat screenshots as proof blocks. Introduce the claim first, show the exact command/action or UI state, place the screenshot immediately after it, then explain the one line/value/region the reader should notice. Do not dump screenshots at the end.
+- Before drafting or revising a technical post with images, consult `docs/technical-visual-style.md`.
+- Code and command blocks: keep them close to the paragraph they support. Use comments or preceding prose to identify the exact file, function, version, or command. Prefer real output over invented output.
+- Highlighting: use `**bold**` only for key entities, observations, or conclusions; avoid styling whole paragraphs. For critical code terms, paths, and state transitions, use backticks.
+- Language texture: Chinese main text can keep necessary English technical terms inline, such as `scheduling cycle`, `binding cycle`, `metadata engine`, `object store`, `CSI plugin`, or `mount pod`. Define them once, then reuse consistently.
+- Series posts: if the topic naturally grows, make it a numbered series with cross-links at the top. Each part still needs a self-contained problem, scope, and conclusion.
+- Closing: summarize what was proven, what remains uncertain, and where to read next. Keep references under `参考资料`; use official docs, source code, design docs, and previous posts.
+- Layout restraint: plain article layout, dense but readable. Avoid landing-page copy, decorative cards, stock imagery, and generic AI-generated illustrations for technical proof.
+
 ## Repository Map
 
 - `examples/`: reproducible source files used by technical posts.
@@ -220,6 +250,7 @@ Guidelines:
 - `scripts/upload-to-r2.js`: low-level image uploader.
 - `docs/agentic-blog-workflow.md`: detailed workflow.
 - `docs/blog-writing-rules.md`: writing and editorial rules.
+- `docs/technical-visual-style.md`: image selection and diagram rules for technical posts.
 
 ## Done Definition
 
