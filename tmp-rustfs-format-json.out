@@ -1,0 +1,34 @@
+# cwd: <mount>/rustfs-dist
+$ jq . node1/disk1/.rustfs.sys/format.json
+{
+  "version": "1",
+  "format": "xl",
+  "id": "13c779ee-1cf5-4b6d-bbfd-8c5298e04e2e",
+  "xl": {
+    "version": "3",
+    "this": "63124b32-a325-4072-9b45-e56a8eb6ae75",
+    "sets": [
+      [
+        "63124b32-a325-4072-9b45-e56a8eb6ae75",
+        "7cee30d3-b5bb-4591-8931-f5998f8eb455",
+        "0c57ef04-0734-4851-b96f-ca32a2194512",
+        "54462c11-0012-4430-a764-087666e6c87a",
+        "f089621e-7aa2-4772-959f-42c2aae42f30",
+        "1106aec2-0326-4292-a1d2-75869e183d28",
+        "6050e0a2-7639-4e2f-8cf3-802e7062959c",
+        "d30eade3-aee9-4bea-832e-337e187d6422"
+      ]
+    ],
+    "distributionAlgo": "SIPMOD+PARITY"
+  }
+}
+
+$ for f in node*/disk*/.rustfs.sys/format.json; do jq -r .xl.this "$f"; done | sort
+0c57ef04-0734-4851-b96f-ca32a2194512
+1106aec2-0326-4292-a1d2-75869e183d28
+54462c11-0012-4430-a764-087666e6c87a
+6050e0a2-7639-4e2f-8cf3-802e7062959c
+63124b32-a325-4072-9b45-e56a8eb6ae75
+7cee30d3-b5bb-4591-8931-f5998f8eb455
+d30eade3-aee9-4bea-832e-337e187d6422
+f089621e-7aa2-4772-959f-42c2aae42f30

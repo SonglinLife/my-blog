@@ -58,24 +58,29 @@ Fig. RustFS 4 节点 8 磁盘实验拓扑：`RUSTFS_VOLUMES` 给出 endpoint 列
 | 上传对象 | `dist-bucket/dist-large-2m.bin` |
 | 对象逻辑大小 | 2097152 B，也就是 2 MiB |
 
-下面所有输出都来自这个实验环境；涉及本机目录的部分已经裁成实验拓扑相对路径。
+下面所有输出都来自这个实验环境。为避免发布本机挂载路径，命令输出里的 `/data/rustfs-dist/` 前缀会显式省略成 `nodeN/diskN/` 这种实验拓扑路径；对象 data dir UUID 在路径里用 `<data-dir>` 标记。
 
 ## 2 先看磁盘上真实出现了什么
 
 这里要验证的是：上传对象之后，8 块盘上都有 `format.json`、`pool.bin/xl.meta`、用户对象 `xl.meta`，并且同一个对象在 8 块盘上各有一个 `part.1` 分片。
 
 ```bash
-stat key files and part.1 shards
+# cwd: <mount>/rustfs-dist
+stat -c '%n %s bytes' node*/disk*/.rustfs.sys/format.json \
+  node*/disk*/.rustfs.sys/pool.bin/xl.meta \
+  node*/disk*/dist-bucket/dist-large-2m.bin/xl.meta
+find node*/disk*/dist-bucket/dist-large-2m.bin -name part.1 \
+  -exec stat -c '%n %s bytes' {} \;
 ```
 
-![RustFS 4 节点 8 磁盘实验里，每块盘都有 format.json、pool.bin/xl.meta、对象 xl.meta，且每块盘的 part.1 分片大小都是 524352 字节](https://img.f3dlife.com/blog/2026/06/29/rustfs-layout-stat-b177cca4-cb70-4759-a56a-e96aceec8140.png)
+![RustFS 4 节点 8 磁盘实验里，每块盘都有 format.json、pool.bin/xl.meta、对象 xl.meta，且每块盘的 part.1 分片大小都是 524352 字节](https://img.f3dlife.com/blog/2026/06/29/rustfs-layout-stat-2a64aa30-6a35-42f4-bfea-4946d3c95274.png)
 Fig. PUT 2 MiB 对象后的磁盘文件证据：系统元数据、对象元数据和 `part.1` 分片都分布在 8 块盘上。
 
 ```text
 node1/disk1/.rustfs.sys/format.json 498 bytes
 node1/disk1/.rustfs.sys/pool.bin/xl.meta 537 bytes
 node1/disk1/dist-bucket/dist-large-2m.bin/xl.meta 413 bytes
-...
+... 12 metadata lines omitted ...
 node4/disk2/.rustfs.sys/format.json 498 bytes
 node4/disk2/.rustfs.sys/pool.bin/xl.meta 537 bytes
 node4/disk2/dist-bucket/dist-large-2m.bin/xl.meta 413 bytes
@@ -86,19 +91,20 @@ node4/disk2/dist-bucket/dist-large-2m.bin/xl.meta 413 bytes
 对象的数据分片完整列表如下：
 
 ```text
-node1/disk1/.../part.1 524352 bytes
-node1/disk2/.../part.1 524352 bytes
-node2/disk1/.../part.1 524352 bytes
-node2/disk2/.../part.1 524352 bytes
-node3/disk1/.../part.1 524352 bytes
-node3/disk2/.../part.1 524352 bytes
-node4/disk1/.../part.1 524352 bytes
-node4/disk2/.../part.1 524352 bytes
+node1/disk1/dist-bucket/dist-large-2m.bin/<data-dir>/part.1 524352 bytes
+node1/disk2/dist-bucket/dist-large-2m.bin/<data-dir>/part.1 524352 bytes
+node2/disk1/dist-bucket/dist-large-2m.bin/<data-dir>/part.1 524352 bytes
+node2/disk2/dist-bucket/dist-large-2m.bin/<data-dir>/part.1 524352 bytes
+node3/disk1/dist-bucket/dist-large-2m.bin/<data-dir>/part.1 524352 bytes
+node3/disk2/dist-bucket/dist-large-2m.bin/<data-dir>/part.1 524352 bytes
+node4/disk1/dist-bucket/dist-large-2m.bin/<data-dir>/part.1 524352 bytes
+node4/disk2/dist-bucket/dist-large-2m.bin/<data-dir>/part.1 524352 bytes
 ```
 
 这组数字先给出一个直觉：
 
 ```text
+解释模型，不是原始输出:
 2 MiB 逻辑对象
   -> 8 个 part.1
   -> 每个 part.1 524352 B
@@ -126,6 +132,7 @@ pub volumes: Vec<String>,
 也就是说，多机部署不是靠节点随便广播“我要加入哪个集群”。更准确的模型是：
 
 ```text
+解释模型，不是原始输出:
 all nodes receive the same RUSTFS_VOLUMES
   -> parse endpoint list
   -> decide local endpoints vs remote endpoints
@@ -135,31 +142,51 @@ all nodes receive the same RUSTFS_VOLUMES
 
 `RUSTFS_VOLUMES` 给出预期拓扑，但它本身还不足以说明“这块盘是谁”。磁盘身份落在 `.rustfs.sys/format.json`。
 
-这里要验证的是：`format.json` 是每块盘的身份文件。`id` 和 set 宽度相同，但每块盘的 `this` 不同。
+这里要验证的是：`format.json` 是每块盘的身份文件。真实 JSON 里 `id` 在同一部署内相同，`xl.sets` 记录 set 矩阵，而每块盘的 `xl.this` 不同。
 
 ```bash
-jq summary node1/disk1/.rustfs.sys/format.json
-for each disk: jq -r .xl.this
+# cwd: <mount>/rustfs-dist
+jq . node1/disk1/.rustfs.sys/format.json
+for f in node*/disk*/.rustfs.sys/format.json; do
+  jq -r .xl.this "$f"
+done | sort
 ```
 
-![RustFS format.json 摘要显示同一个 deployment id、一个宽度为 8 的 set，以及 8 个不同的 this UUID](https://img.f3dlife.com/blog/2026/06/29/rustfs-format-json-55e9322e-0459-47f9-977c-509fd13fc6dd.png)
-Fig. `format.json` 里的 `id` 标识部署，`setWidths: [8]` 标识 set 宽度，8 个不同的 `this` 标识 8 块不同磁盘。
+![RustFS format.json 真实 JSON 结构显示顶层 id、xl.this、xl.sets 和 distributionAlgo，并列出 8 个磁盘的 this UUID](https://img.f3dlife.com/blog/2026/06/29/rustfs-format-json-54324099-3fa2-495c-b501-83ad78519651.png)
+Fig. `format.json` 的真实结构：顶层 `id` 标识部署，`xl.sets[0]` 是包含 8 个磁盘 UUID 的 set，`xl.this` 标识当前磁盘。
 
-抽取其中一块盘的 `format.json`，关键信息是：
+抽取其中一块盘的 `format.json`，真实形状是：
 
 ```json
 {
   "version": "1",
   "format": "xl",
   "id": "13c779ee-1cf5-4b6d-bbfd-8c5298e04e2e",
-  "this": "63124b32-a325-4072-9b45-e56a8eb6ae75",
-  "setCount": 1,
-  "setWidths": [8],
-  "distributionAlgo": "SIPMOD+PARITY"
+  "xl": {
+    "version": "3",
+    "this": "63124b32-a325-4072-9b45-e56a8eb6ae75",
+    "sets": [
+      [
+        "63124b32-a325-4072-9b45-e56a8eb6ae75",
+        "7cee30d3-b5bb-4591-8931-f5998f8eb455",
+        "... 6 more disk UUIDs omitted ..."
+      ]
+    ],
+    "distributionAlgo": "SIPMOD+PARITY"
+  }
 }
 ```
 
-这里为了阅读方便，`xl.sets` 这个 UUID 矩阵被折叠成了 `setCount/setWidths`。真实文件里，`xl.sets[0]` 记录了这个 set 的 8 个 disk UUID；`xl.this` 则是当前这块盘自己的 UUID。
+上面的 `"... 6 more disk UUIDs omitted ..."` 是明确省略，真实文件里这里还有 6 个 disk UUID。不要把 `setCount`、`setWidths` 当成真实字段；如果需要快速理解，可以用下面这个解释模型：
+
+```text
+解释模型，不是原始 JSON:
+deployment id = id
+current disk = xl.this
+set count = len(xl.sets)
+set width = len(xl.sets[0])
+distribution algorithm = xl.distributionAlgo
+```
 
 8 块盘的 `this` 正好是 8 个不同 UUID：
 
@@ -194,6 +221,7 @@ save_format_file_all(disks, &fms).await?;
 所以 RustFS 的“磁盘自描述”不是说每块盘保存了所有动态状态，而是说每块盘保存了足够稳定的身份和布局信息：
 
 ```text
+解释模型，不是原始输出:
 deployment id: 我属于哪个部署
 this: 我是哪块盘
 sets: 这个 pool 的 set 矩阵长什么样
@@ -234,6 +262,7 @@ fn get_hashed_set_index(&self, input: &str) -> usize {
 这个实验里只有一个 set，所以所有对象都会落到 set 0。但在多个 set 的 pool 中，路径会变成：
 
 ```text
+解释模型，不是原始输出:
 object name
   -> sip_hash(object_name, set_count, deployment_id)
   -> set index
@@ -300,6 +329,7 @@ meta[etag]=a0e2aa19d5bf051548e8a2983a6ceeec
 因此可以这样区分：
 
 ```text
+解释模型，不是原始输出:
 format.json
   local disk identity file
   plain JSON
@@ -323,6 +353,7 @@ Fig. 4+4 set 的故障域不是“机器数量”本身，而是 set 内丢失 s
 纠删码利用率可以先用一个简单公式理解：
 
 ```text
+解释模型，不是原始输出:
 usable = data_shards / (data_shards + parity_shards)
 ```
 
@@ -387,6 +418,7 @@ pub fn from_volumes<T: AsRef<str>>(args: &[T], set_drive_count: usize) -> Result
 把启动路径、写入路径和元数据持久化放在一起，可以得到这个工作模型：
 
 ```text
+解释模型，不是原始输出:
 startup path:
   RUSTFS_VOLUMES
     -> endpoint list
