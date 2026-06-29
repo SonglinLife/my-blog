@@ -216,11 +216,28 @@ Avoid:
 - State the tested software versions early when behavior may depend on them.
 - Prefer official docs, source code, design docs, RFCs, and reproducible experiments.
 - Link source code to stable tags or commits when possible.
+- For public source code, prefer commit-pinned permalinks to exact lines or tight line ranges. Use link text like `path/to/file.rs#L10-L32`, then say what the code proves.
 - If using logs or command output, capture real output. Redact secrets and private paths.
 - When explaining an inferred behavior, mark it as inference and say what evidence supports it.
 - Keep evidence faithful. Do not invent, rename, normalize, or fold fields inside JSON/YAML/log/source/output snippets for readability.
 - Redaction and omission are allowed only when explicit: use `...`, `<redacted>`, or a sentence explaining what was omitted.
 - If a simplified representation helps, place it after the real snippet and label it `解释模型`, `伪结构`, or `为了说明的简化模型`; do not present it as a real file.
+
+Good source anchor:
+
+```markdown
+源码里有两个锚点：
+[`crates/ecstore/src/config/com.rs#L185-L241`](https://github.com/example/project/blob/<commit>/crates/ecstore/src/config/com.rs#L185-L241)
+负责配置对象的读写路径；
+[`crates/ecstore/src/disk/mod.rs#L26`](https://github.com/example/project/blob/<commit>/crates/ecstore/src/disk/mod.rs#L26)
+定义内部命名空间常量。两者连起来说明这个状态写在内部对象路径下，而不是外部数据库。
+```
+
+Weak source anchor:
+
+```markdown
+证据锚点：crates/ecstore/src/config/com.rs 第 185-241 行。
+```
 
 ### Named Artifact Completeness
 
