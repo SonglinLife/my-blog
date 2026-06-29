@@ -7,7 +7,7 @@
   },
   "scripts": {
     "dev": "astro dev",
-    "build": "rm -rf public/pagefind && astro check && astro build && rm -rf dist/pagefind && pagefind --site dist && cp -r dist/pagefind public/",
+    "build": "rm -rf .astro node_modules/.astro public/pagefind && astro check && astro build && rm -rf dist/pagefind && pagefind --site dist && cp -r dist/pagefind public/",
     "preview": "astro preview",
     "astro": "astro",
     "post:new": "node scripts/new-post.js",

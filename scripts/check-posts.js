@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 import { existsSync, readdirSync } from "node:fs";
-import { extname, join, resolve } from "node:path";
+import { extname, join, relative, resolve } from "node:path";
+import kebabcase from "lodash.kebabcase";
+import slugify from "slugify";
 import {
   getBoolean,
   getScalar,
@@ -21,8 +23,11 @@ const files = process.argv
   .filter(arg => !arg.startsWith("--"))
   .map(file => resolve(projectRoot, file));
 const targets = files.length > 0 ? files : listMarkdownFiles(BLOG_DIR);
+const allPosts = listMarkdownFiles(BLOG_DIR);
 
 const findings = [];
+
+checkUniqueContentIds(allPosts);
 
 for (const filePath of targets) {
   checkPost(filePath);
@@ -111,6 +116,46 @@ function listMarkdownFiles(dir) {
     if (entry.isFile() && extname(entry.name) === ".md") return [fullPath];
     return [];
   });
+}
+
+function checkUniqueContentIds(filePaths) {
+  const byId = new Map();
+
+  for (const filePath of filePaths) {
+    const id = contentIdFor(filePath);
+    const existing = byId.get(id);
+
+    if (!existing) {
+      byId.set(id, filePath);
+      continue;
+    }
+
+    add(
+      "error",
+      relativeFile(filePath),
+      `duplicate content id "${id}" also used by ${relativeFile(existing)}`
+    );
+  }
+}
+
+function contentIdFor(filePath) {
+  const relativePath = relative(BLOG_DIR, filePath);
+  const withoutExt = relativePath.slice(0, -extname(relativePath).length);
+
+  return withoutExt
+    .split("/")
+    .filter(Boolean)
+    .filter(segment => !segment.startsWith("_"))
+    .map(slugifyStr)
+    .join("/");
+}
+
+function slugifyStr(value) {
+  if (/[^\u0000-\u007F]/.test(value)) {
+    return kebabcase(value);
+  }
+
+  return slugify(value, { lower: true });
 }
 
 function add(level, file, message) {
