@@ -15,7 +15,7 @@ RustFS 的 `.rustfs.sys/` 目录里，有两个很容易误判的对象：每盘
 
 如果只看目录结构，很容易把它们理解成某种中心元数据。但从启动拓扑、磁盘身份、对象 hash 和 `xl.meta/part.N` 的关系看，RustFS 的恢复模型更像一组分层规则。
 
-本文按运行顺序展开：先看一个分布式 RustFS 怎么启动，为什么任意节点都能恢复同一张 pool/set/disk 拓扑；再沿一次 2 MiB PUT 看对象怎么进入 set，并落成 `xl.meta` 和 `part.1`；最后把容易误判的 `pool.bin` 放回系统元数据位置。
+本文按运行顺序展开：先看一个分布式 RustFS 怎么启动，为什么任意节点都能恢复同一张 pool/set/disk 拓扑；再把 `pool.bin` 放回 pool 生命周期账本的位置；最后沿一次 2 MiB PUT 看对象怎么进入 set，并落成 `xl.meta` 和 `part.1`。
 
 实验拓扑：RustFS 源码 `main@acdf43937162b247619c6a32a5fe079146ca794d`，4 个节点，每个节点 2 块盘，一共 8 个 disk endpoint。实验形成 1 个 pool、1 个 set，上传一个 2 MiB 对象后观察磁盘文件和源码路径。
 
@@ -27,8 +27,8 @@ Fig. RustFS 4 节点 8 磁盘实验拓扑：`RUSTFS_VOLUMES` 给出 endpoint 列
 - [1 问题与环境](#1-问题与环境)
 - [2 启动入口：RUSTFS_VOLUMES 定义同一张拓扑图](#2-启动入口rustfs_volumes-定义同一张拓扑图)
 - [3 format.json：为什么节点能恢复 pool/set/disk 视图](#3-formatjson为什么节点能恢复-poolsetdisk-视图)
-- [4 PUT 2 MiB：对象如何进入 set 并落盘](#4-put-2-mib对象如何进入-set-并落盘)
-- [5 pool.bin：pool 生命周期账本，不是对象索引](#5-poolbinpool-生命周期账本不是对象索引)
+- [4 pool.bin：pool 生命周期账本，不是对象索引](#4-poolbinpool-生命周期账本不是对象索引)
+- [5 PUT 2 MiB：对象如何进入 set 并落盘](#5-put-2-mib对象如何进入-set-并落盘)
 - [6 纠删码边界：4+4、6+2、8+4 到底差在哪](#6-纠删码边界4484-到底差在哪)
 - [7 pool、set 与扩容/坏槽位](#7-poolset-与扩容坏槽位)
 - [8 小结](#8-小结)
@@ -234,126 +234,33 @@ distributionAlgo: 对象分布算法是什么
 
 **启动时，`RUSTFS_VOLUMES` 是拓扑输入，`format.json` 是磁盘身份账本。两者对得上，节点才能恢复出同一套 pool/set/disk 视图。**
 
-## 4 PUT 2 MiB：对象如何进入 set 并落盘
+## 4 pool.bin：pool 生命周期账本，不是对象索引
 
-有了 pool/set/disk 视图之后，对象写入还需要解决另一个问题：这个 object key 进入哪个 set？
+`pool.bin` 是 RustFS 持久化 pool 状态的内部 config 对象。
 
-RustFS 在 `Sets` 里有一个很直接的路径。下面摘出两个相关函数；它们在源码中间隔着 storage info 相关函数，这里只保留 set 选择路径：
+一句话说清楚：**`format.json` 记录磁盘身份和 set 布局，`pool.bin` 记录 pool 列表和 pool 生命周期状态。**
 
-```rust
-pub fn get_disks_by_key(&self, key: &str) -> Arc<SetDisks> {
-    self.get_disks(self.get_hashed_set_index(key))
-}
+它不是业务对象索引，不记录 `bucket/object` 落在哪个 set，也不替代 `format.json`。对象写入时用 deployment id、object key hash 和 set 布局选择磁盘；`pool.bin` 只回答另一类问题：当前有哪些 pool，这些 pool 是否处在 decommission 这类生命周期流程中。
 
-fn get_hashed_set_index(&self, input: &str) -> usize {
-    match self.distribution_algo {
-        DistributionAlgoVersion::V1 => crc_hash(input, self.disk_set.len()),
-        DistributionAlgoVersion::V2 | DistributionAlgoVersion::V3 => {
-            sip_hash(input, self.disk_set.len(), self.id.as_bytes())
-        }
-    }
-}
-```
-
-源码锚点：
-[`crates/ecstore/src/sets.rs#L287-L340`](https://github.com/SonglinLife/rustfs/blob/acdf43937162b247619c6a32a5fe079146ca794d/crates/ecstore/src/sets.rs#L287-L340)
-说明对象名会先映射到 set index，再拿到该 set 对应的磁盘集合。
-
-这段代码说明两件事。
-
-第一，set 选择不是扫描目录得出的，而是由 object key 确定性哈希得出的。
-
-第二，实验里的 `distributionAlgo` 是 `SIPMOD+PARITY`，对应 V2/V3 的 sip hash 路径；hash key 用的是 deployment id。
-
-这个实验里只有一个 set，所以所有对象都会落到 set 0。但在多个 set 的 pool 中，路径会变成：
-
-```text
-object name
-  -> sip_hash(object_name, set_count, deployment_id)
-  -> set index
-  -> set disks
-  -> xl.meta + part.N shards
-```
-
-这也是为什么“只看目录”会误导：目录是写入后的形态，不是对象定位的规则。对象先通过 hash 进入某个 set，再在 set 内按纠删码布局写出 `xl.meta` 和 `part.1`。
-
-沿着 PUT 路径走到落盘阶段，再检查写入结果。这里要验证的是：8 块盘上都有用户对象 `xl.meta`，并且同一个对象在 8 块盘上各有一个 `part.1` 分片；截图里同时出现的 `format.json` 和 `pool.bin/xl.meta` 是系统元数据，后面会单独解释。
-
-```bash
-# cwd: <mount>/rustfs-dist
-stat -c '%n %s bytes' node*/disk*/.rustfs.sys/format.json \
-  node*/disk*/.rustfs.sys/pool.bin/xl.meta \
-  node*/disk*/dist-bucket/dist-large-2m.bin/xl.meta
-find node*/disk*/dist-bucket/dist-large-2m.bin -name part.1 \
-  -exec stat -c '%n %s bytes' {} \;
-```
-
-![RustFS 4 节点 8 磁盘实验里，每块盘都有 format.json、pool.bin/xl.meta、对象 xl.meta，且每块盘的 part.1 分片大小都是 524352 字节](https://img.f3dlife.com/blog/2026/06/29/rustfs-layout-stat-2a64aa30-6a35-42f4-bfea-4946d3c95274.png)
-Fig. PUT 2 MiB 对象后的磁盘文件证据：系统元数据、对象元数据和 `part.1` 分片都分布在 8 块盘上。
-
-```text
-node1/disk1/.rustfs.sys/format.json 498 bytes
-node1/disk1/.rustfs.sys/pool.bin/xl.meta 537 bytes
-node1/disk1/dist-bucket/dist-large-2m.bin/xl.meta 413 bytes
-... 12 metadata lines omitted ...
-node4/disk2/.rustfs.sys/format.json 498 bytes
-node4/disk2/.rustfs.sys/pool.bin/xl.meta 537 bytes
-node4/disk2/dist-bucket/dist-large-2m.bin/xl.meta 413 bytes
-```
-
-对象的数据分片完整列表如下：
-
-```text
-node1/disk1/dist-bucket/dist-large-2m.bin/<data-dir>/part.1 524352 bytes
-node1/disk2/dist-bucket/dist-large-2m.bin/<data-dir>/part.1 524352 bytes
-node2/disk1/dist-bucket/dist-large-2m.bin/<data-dir>/part.1 524352 bytes
-node2/disk2/dist-bucket/dist-large-2m.bin/<data-dir>/part.1 524352 bytes
-node3/disk1/dist-bucket/dist-large-2m.bin/<data-dir>/part.1 524352 bytes
-node3/disk2/dist-bucket/dist-large-2m.bin/<data-dir>/part.1 524352 bytes
-node4/disk1/dist-bucket/dist-large-2m.bin/<data-dir>/part.1 524352 bytes
-node4/disk2/dist-bucket/dist-large-2m.bin/<data-dir>/part.1 524352 bytes
-```
-
-这组数字给出对象路径的结果：
-
-```text
-2 MiB 逻辑对象
-  -> hash 到 pool 0 / set 0
-  -> 8 个 part.1
-  -> 每个 part.1 524352 B
-  -> 合计约 4 MiB
-```
-
-这不是 8 份完整复制，而是 4+4 纠删码：4 个 data shard，4 个 parity shard。**对象恢复依赖 set 内的 shard 和 `xl.meta`，不是依赖目录里某一份完整文件。**
-
-## 5 pool.bin：pool 生命周期账本，不是对象索引
-
-`pool.bin` 容易让人误会。它在磁盘上看起来像一个特殊文件：
+磁盘上看到的是这个路径：
 
 ```text
 .rustfs.sys/pool.bin/xl.meta
 ```
 
-这里要拆成三层看：
+这只是它的磁盘外壳。对象层看，它是 `.rustfs.sys` bucket 下名为 `pool.bin` 的内部对象；payload 是 RustFS 自己编码的 `PoolMeta`。
 
-1. 磁盘上看到的是 `xl.meta` 外壳；
-2. 对象层读出来的是 `.rustfs.sys` bucket 里的 `pool.bin` 对象；
-3. 对象 payload 是 RustFS 自己编码的 `PoolMeta`。
-
-先看外壳。`pool.bin` 不是一个只存在于某台机器上的中心数据库文件；从 `xl.meta` 解码结果看，它走的是 RustFS 内部对象元数据路径，并且这个样本里数据被 inline 到 `xl.meta`。
+用 RustFS 自带的 `dump_fileinfo` 解码，可以看到这个样本的 `pool.bin` 是一个 inline 的 `xl.meta` 对象：
 
 ```bash
 cargo run -p rustfs-filemeta --example dump_fileinfo -- \
   node1/disk1/.rustfs.sys/pool.bin/xl.meta
-
-cargo run -p rustfs-filemeta --example dump_fileinfo -- \
-  node1/disk1/dist-bucket/dist-large-2m.bin/xl.meta
 ```
 
 ![RustFS dump_fileinfo 解码 pool.bin/xl.meta 和用户对象 xl.meta，pool.bin 显示 inline data 标记，用户对象显示逻辑大小 2097152 字节](https://img.f3dlife.com/blog/2026/06/29/rustfs-xlmeta-dump-89ae36b3-f4ac-4199-99f9-14fd94e45d82.png)
 Fig. `pool.bin` 和用户对象都能按 `xl.meta` 解码；`pool.bin` 样本带有 `x-rustfs-internal-inline-data=true`，用户对象 `xl.meta` 记录逻辑大小 2097152 B。
 
-用 RustFS 自带的 `dump_fileinfo` 例子解码后，`pool.bin` 更像是一个存放在 `.rustfs.sys` 下的内部对象：
+关键行是：
 
 ```text
 path: node1/disk1/.rustfs.sys/pool.bin/xl.meta
@@ -368,28 +275,7 @@ meta[x-minio-internal-inline-data]=true
 meta[x-rustfs-internal-inline-data]=true
 ```
 
-对比用户对象的 `xl.meta`：
-
-```text
-path: node1/disk1/dist-bucket/dist-large-2m.bin/xl.meta
-size: 2097152
-etag: Some("a0e2aa19d5bf051548e8a2983a6ceeec")
-parts: 1
-part#0: number=1 size=2097152 actual_size=2097152 etag=a0e2aa19d5bf051548e8a2983a6ceeec
-part#0.index: none
-metadata entries: 2
-meta[content-type]=application/octet-stream
-meta[etag]=a0e2aa19d5bf051548e8a2983a6ceeec
-```
-
-两者都走 `xl.meta` 这套对象元数据格式。区别在语义：`pool.bin` 位于 `.rustfs.sys` 内部命名空间，RustFS 用它记录 pool 相关状态；用户不会把它当普通业务对象读写。
-
-源码测试里也有针对 `.rustfs.sys/pool.bin` 的兼容解析用例，调用的是 `into_fileinfo(".rustfs.sys", "pool.bin", ...)`。
-源码锚点：
-[`crates/filemeta/src/filemeta.rs#L1144-L1165`](https://github.com/SonglinLife/rustfs/blob/acdf43937162b247619c6a32a5fe079146ca794d/crates/filemeta/src/filemeta.rs#L1144-L1165)
-说明 `pool.bin` 的磁盘外壳可以按 `xl.meta` 对象元数据路径解析。
-
-再看对象层。`pool.bin` 这个名字来自 `POOL_META_NAME`，格式号和版本号也在同一个文件里定义：
+外壳只说明“它怎么存在磁盘上”。真正重要的是 payload。`pool.bin` 这个名字来自 `POOL_META_NAME`，格式号和版本号也在同一个文件里定义：
 
 ```rust
 pub const POOL_META_NAME: &str = "pool.bin";
@@ -401,35 +287,13 @@ pub const POOL_META_VERSION: u16 = 1;
 [`crates/ecstore/src/pools.rs#L84-L86`](https://github.com/SonglinLife/rustfs/blob/acdf43937162b247619c6a32a5fe079146ca794d/crates/ecstore/src/pools.rs#L84-L86)
 定义 `pool.bin` 这个内部对象名，以及 pool metadata 的格式号和版本号。
 
-读写它时，RustFS 没有直接打开某个本地路径，而是走 `read_config` / `save_config`。这两个函数固定使用 `RUSTFS_META_BUCKET`，也就是 `.rustfs.sys`：
-
-```rust
-pub async fn read_config<S: ObjectIO>(api: Arc<S>, file: &str) -> Result<Vec<u8>> {
-    let (data, _obj) = read_config_with_metadata(api, file, &ObjectOptions::default()).await?;
-    Ok(data)
-}
-
-pub async fn save_config<S: ObjectIO>(api: Arc<S>, file: &str, data: Vec<u8>) -> Result<()> {
-    save_config_with_opts(
-        api,
-        file,
-        data,
-        &ObjectOptions {
-            max_parity: true,
-            ..Default::default()
-        },
-    )
-    .await
-}
-```
-
-源码里有两个锚点：
+读写它时，RustFS 走 `read_config` / `save_config`，并固定使用内部命名空间 `.rustfs.sys`。源码里有两个锚点：
 [`crates/ecstore/src/config/com.rs#L185-L241`](https://github.com/SonglinLife/rustfs/blob/acdf43937162b247619c6a32a5fe079146ca794d/crates/ecstore/src/config/com.rs#L185-L241)
 负责配置对象的读写路径；
 [`crates/ecstore/src/disk/mod.rs#L26`](https://github.com/SonglinLife/rustfs/blob/acdf43937162b247619c6a32a5fe079146ca794d/crates/ecstore/src/disk/mod.rs#L26)
-定义内部命名空间常量 `.rustfs.sys`。两者连起来说明 `pool.bin` 写在内部对象路径下，而不是外部数据库。
+定义内部命名空间常量 `.rustfs.sys`。两者连起来说明 `pool.bin` 写在 RustFS 内部对象路径下，而不是外部数据库。
 
-所以 `pool.bin` 的“文件位置”不是它的完整语义。更准确地说，它是一个 RustFS config 对象：
+到这里，可以先得到 `pool.bin` 的定位：
 
 ```text
 bucket: .rustfs.sys
@@ -439,39 +303,13 @@ write path: save_config(pool, "pool.bin", bytes)
 read path: read_config(pool, "pool.bin")
 ```
 
-最后看 payload。`PoolMeta::save` 会先写 4 字节头部，再把 `PersistedPoolMeta` 用 MessagePack 编码进去：
-
-```rust
-let mut data = Vec::new();
-data.write_u16::<LittleEndian>(POOL_META_FORMAT)?;
-data.write_u16::<LittleEndian>(POOL_META_VERSION)?;
-let mut buf = Vec::new();
-PersistedPoolMeta::from(self).serialize(&mut Serializer::new(&mut buf))?;
-data.write_all(&buf)?;
-
-for pool in pools {
-    save_config(pool, POOL_META_NAME, data.clone()).await?;
-}
-```
+最后看 payload。`PoolMeta::save` 会先写 4 字节头部，再把 `PersistedPoolMeta` 用 MessagePack 编码进去，然后保存到所有 pool。
 
 源码锚点：
 [`crates/ecstore/src/pools.rs#L844-L857`](https://github.com/SonglinLife/rustfs/blob/acdf43937162b247619c6a32a5fe079146ca794d/crates/ecstore/src/pools.rs#L844-L857)
 说明保存 `pool.bin` 时会写入 4 字节头部，再序列化 `PersistedPoolMeta`，并保存到所有 pool。
 
-`PoolMeta::load` 则反过来读取 `pool.bin`，校验前 4 字节的格式号和版本号，然后从 `data[4..]` 开始解 `PersistedPoolMeta`：
-
-```rust
-let format = LittleEndian::read_u16(&data[0..2]);
-if format != POOL_META_FORMAT {
-    return Err(Error::other(format!("pool metadata load failed: unknown format {format}")));
-}
-let version = LittleEndian::read_u16(&data[2..4]);
-if version != POOL_META_VERSION {
-    return Err(Error::other(format!("pool metadata load failed: unknown version {version}")));
-}
-
-*self = Self::decode_pool_meta_payload(&data[4..])?;
-```
+`PoolMeta::load` 则反过来读取 `pool.bin`，校验前 4 字节的格式号和版本号，然后从 `data[4..]` 开始解 `PersistedPoolMeta`。
 
 源码锚点：
 [`crates/ecstore/src/pools.rs#L807-L841`](https://github.com/SonglinLife/rustfs/blob/acdf43937162b247619c6a32a5fe079146ca794d/crates/ecstore/src/pools.rs#L807-L841)
@@ -522,64 +360,21 @@ messagepack(PersistedPoolMeta):
 
 这不是从 `pool.bin/xl.meta` 里直接打印出来的 JSON。已验证的是：磁盘外壳是 `xl.meta`，源码写入的 payload schema 是 `PersistedPoolMeta`，编码方式是 `rmp_serde` MessagePack。本文没有用对象读路径把实验样本的 `pool.bin` payload 反解成可读 JSON。
 
-它在架构中的位置也因此清楚了：`format.json` 解决“这块盘是谁、属于哪个 set”；`pool.bin` 解决“当前有哪些 pool，以及这些 pool 的生命周期状态如何”。启动时，`ECStore::init` 会加载 `PoolMeta`，校验后写入运行时的 `ECStore.pool_meta`：
+它在架构中的位置也因此清楚了：`format.json` 解决“这块盘是谁、属于哪个 set”；`pool.bin` 解决“当前有哪些 pool，以及这些 pool 的生命周期状态如何”。
 
-```rust
-let mut meta = PoolMeta::default();
-resolve_store_init_stage_result(
-    meta.load(
-        self.pools
-            .first()
-            .cloned()
-            .ok_or_else(|| Error::other("store init failed: no storage pools available"))?,
-        self.pools.clone(),
-    )
-    .await,
-    "load_pool_meta",
-)?;
-let update = meta.validate(self.pools.clone())?;
-```
+它主要在三类时刻起作用：
+
+1. 启动时加载：RustFS 读取 `pool.bin`，把 `PoolMeta` 放进运行时的 `ECStore.pool_meta`，并校验当前 pool 列表。
+2. 生命周期变化时保存：例如 decommission 启动或状态变化时，RustFS 更新 `pool_meta`，再保存回 `pool.bin`。
+3. 节点间同步时 reload：一个节点更新后，会通知其他节点重新加载 `pool.bin`，替换内存里的 `pool_meta`。
 
 源码锚点：
 [`crates/ecstore/src/store/init.rs#L362-L374`](https://github.com/SonglinLife/rustfs/blob/acdf43937162b247619c6a32a5fe079146ca794d/crates/ecstore/src/store/init.rs#L362-L374)
-说明启动时会加载 `PoolMeta`，并对当前 pool 列表做校验。
-
-在 decommission 路径里，RustFS 会更新 `pool_meta`，保存到所有 pool，然后通知其他节点 reload：
-
-```rust
-pool_meta.save(self.pools.clone()).await?;
-
-if let Some(notification_sys) = get_global_notification_sys()
-    && let Err(err) =
-        resolve_decommission_pool_meta_reload_result(notification_sys.reload_pool_meta().await, "start_decommission")
-{
-    warn!("{err}");
-}
-```
-
-源码锚点：
+说明启动时会加载并校验 `PoolMeta`；
 [`crates/ecstore/src/pools.rs#L2574-L2590`](https://github.com/SonglinLife/rustfs/blob/acdf43937162b247619c6a32a5fe079146ca794d/crates/ecstore/src/pools.rs#L2574-L2590)
-说明 decommission 启动时会更新并保存 `pool_meta`，随后通知其他节点 reload。
-
-peer 侧的 reload 会重新从对象层加载 `pool.bin`，再替换内存里的 `pool_meta`：
-
-```rust
-pub async fn reload_pool_meta(&self) -> Result<()> {
-    let mut meta = PoolMeta::default();
-    resolve_store_rebalance_pool_meta_reload_result(
-        meta.load(self.pools[0].clone(), self.pools.clone()).await,
-        "reload_pool_meta",
-    )?;
-
-    let mut pool_meta = self.pool_meta.write().await;
-    *pool_meta = meta;
-    Ok(())
-}
-```
-
-源码锚点：
+说明 decommission 路径会保存 `pool_meta` 并通知 reload；
 [`crates/ecstore/src/store/rebalance.rs#L625-L635`](https://github.com/SonglinLife/rustfs/blob/acdf43937162b247619c6a32a5fe079146ca794d/crates/ecstore/src/store/rebalance.rs#L625-L635)
-说明 peer reload 会重新加载 `PoolMeta` 并替换内存中的 `pool_meta`。
+说明 peer reload 会重新加载 `PoolMeta` 并替换内存状态。
 
 把这些证据合起来，`pool.bin` 的语义栈是：
 
@@ -609,7 +404,109 @@ pool.bin
   loaded into ECStore.pool_meta
 ```
 
-**`format.json` 更像每块盘的身份证；`pool.bin` 更像 RustFS 自己存在对象层里的 pool 生命周期账本。** 它不是对象索引，也不决定某个业务对象进入哪个 set；对象定位仍然靠 deployment id、object name hash 和 set 布局。
+**`format.json` 更像每块盘的身份证；`pool.bin` 更像 RustFS 自己存在对象层里的 pool 生命周期账本。** 它不是对象索引，也不决定某个业务对象进入哪个 set。
+
+到这里，启动阶段的三个概念可以串起来：
+
+```text
+RUSTFS_VOLUMES  给出预期 endpoint 拓扑
+format.json     让每块盘证明自己的 deployment / set / disk 身份
+pool.bin        让运行时知道 pool 列表和 pool 生命周期状态
+```
+
+接下来才轮到对象写入。对象定位仍然靠 deployment id、object key hash 和 set 布局。
+
+## 5 PUT 2 MiB：对象如何进入 set 并落盘
+
+有了 pool/set/disk 视图之后，对象写入还需要解决另一个问题：这个 object key 进入哪个 set？
+
+RustFS 在 `Sets` 里有一个很直接的路径。下面摘出两个相关函数；它们在源码中间隔着 storage info 相关函数，这里只保留 set 选择路径：
+
+```rust
+pub fn get_disks_by_key(&self, key: &str) -> Arc<SetDisks> {
+    self.get_disks(self.get_hashed_set_index(key))
+}
+
+fn get_hashed_set_index(&self, input: &str) -> usize {
+    match self.distribution_algo {
+        DistributionAlgoVersion::V1 => crc_hash(input, self.disk_set.len()),
+        DistributionAlgoVersion::V2 | DistributionAlgoVersion::V3 => {
+            sip_hash(input, self.disk_set.len(), self.id.as_bytes())
+        }
+    }
+}
+```
+
+源码锚点：
+[`crates/ecstore/src/sets.rs#L287-L340`](https://github.com/SonglinLife/rustfs/blob/acdf43937162b247619c6a32a5fe079146ca794d/crates/ecstore/src/sets.rs#L287-L340)
+说明对象名会先映射到 set index，再拿到该 set 对应的磁盘集合。
+
+这段代码说明两件事。
+
+第一，set 选择不是扫描目录得出的，而是由 object key 确定性哈希得出的。
+
+第二，实验里的 `distributionAlgo` 是 `SIPMOD+PARITY`，对应 V2/V3 的 sip hash 路径；hash key 用的是 deployment id。
+
+这个实验里只有一个 set，所以所有对象都会落到 set 0。但在多个 set 的 pool 中，路径会变成：
+
+```text
+object name
+  -> sip_hash(object_name, set_count, deployment_id)
+  -> set index
+  -> set disks
+  -> xl.meta + part.N shards
+```
+
+这也是为什么“只看目录”会误导：目录是写入后的形态，不是对象定位的规则。对象先通过 hash 进入某个 set，再在 set 内按纠删码布局写出 `xl.meta` 和 `part.1`。
+
+沿着 PUT 路径走到落盘阶段，再检查写入结果。这里要验证的是：8 块盘上都有用户对象 `xl.meta`，并且同一个对象在 8 块盘上各有一个 `part.1` 分片；截图里同时出现的 `format.json` 和 `pool.bin/xl.meta` 是前面两节讲过的系统元数据。
+
+```bash
+# cwd: <mount>/rustfs-dist
+stat -c '%n %s bytes' node*/disk*/.rustfs.sys/format.json \
+  node*/disk*/.rustfs.sys/pool.bin/xl.meta \
+  node*/disk*/dist-bucket/dist-large-2m.bin/xl.meta
+find node*/disk*/dist-bucket/dist-large-2m.bin -name part.1 \
+  -exec stat -c '%n %s bytes' {} \;
+```
+
+![RustFS 4 节点 8 磁盘实验里，每块盘都有 format.json、pool.bin/xl.meta、对象 xl.meta，且每块盘的 part.1 分片大小都是 524352 字节](https://img.f3dlife.com/blog/2026/06/29/rustfs-layout-stat-2a64aa30-6a35-42f4-bfea-4946d3c95274.png)
+Fig. PUT 2 MiB 对象后的磁盘文件证据：系统元数据、对象元数据和 `part.1` 分片都分布在 8 块盘上。
+
+```text
+node1/disk1/.rustfs.sys/format.json 498 bytes
+node1/disk1/.rustfs.sys/pool.bin/xl.meta 537 bytes
+node1/disk1/dist-bucket/dist-large-2m.bin/xl.meta 413 bytes
+... 12 metadata lines omitted ...
+node4/disk2/.rustfs.sys/format.json 498 bytes
+node4/disk2/.rustfs.sys/pool.bin/xl.meta 537 bytes
+node4/disk2/dist-bucket/dist-large-2m.bin/xl.meta 413 bytes
+```
+
+对象的数据分片完整列表如下：
+
+```text
+node1/disk1/dist-bucket/dist-large-2m.bin/<data-dir>/part.1 524352 bytes
+node1/disk2/dist-bucket/dist-large-2m.bin/<data-dir>/part.1 524352 bytes
+node2/disk1/dist-bucket/dist-large-2m.bin/<data-dir>/part.1 524352 bytes
+node2/disk2/dist-bucket/dist-large-2m.bin/<data-dir>/part.1 524352 bytes
+node3/disk1/dist-bucket/dist-large-2m.bin/<data-dir>/part.1 524352 bytes
+node3/disk2/dist-bucket/dist-large-2m.bin/<data-dir>/part.1 524352 bytes
+node4/disk1/dist-bucket/dist-large-2m.bin/<data-dir>/part.1 524352 bytes
+node4/disk2/dist-bucket/dist-large-2m.bin/<data-dir>/part.1 524352 bytes
+```
+
+这组数字给出对象路径的结果：
+
+```text
+2 MiB 逻辑对象
+  -> hash 到 pool 0 / set 0
+  -> 8 个 part.1
+  -> 每个 part.1 524352 B
+  -> 合计约 4 MiB
+```
+
+这不是 8 份完整复制，而是 4+4 纠删码：4 个 data shard，4 个 parity shard。**对象恢复依赖 set 内的 shard 和 `xl.meta`，不是依赖目录里某一份完整文件。**
 
 ## 6 纠删码边界：4+4、6+2、8+4 到底差在哪
 
@@ -706,25 +603,25 @@ startup path:
     -> local/remote disk mapping
     -> read or create format.json
     -> pool / set / disk view
+    -> load pool.bin into ECStore.pool_meta
+
+metadata persistence:
+  format.json = per-disk identity and set layout
+  pool.bin = pool list and lifecycle state
+  pool.bin payload = 4-byte header + MessagePack PersistedPoolMeta
 
 object PUT path:
   object name
     -> hash to set
     -> erasure encode inside the set
     -> write xl.meta and part.N shards
-
-metadata persistence:
-  format.json = per-disk identity and set layout
-  pool.bin = internal PoolMeta object under .rustfs.sys
-  pool.bin payload = 4-byte header + MessagePack PersistedPoolMeta
-  xl.meta = object metadata and sometimes inline data
 ```
 
 实验输出已经验证：8 块盘都有 `format.json`，同一个 deployment id 下有不同 `this`；2 MiB 对象在 4+4 下写成 8 个 shard；`pool.bin` 可以按内部对象的 `xl.meta` 解码。源码路径进一步说明：它的 payload 是 `PoolMeta`，用于记录 pool 生命周期状态，不是业务对象索引。
 
 还有一些没有在这篇里展开：比如 rebalance/decommission 的完整状态机、远端 disk RPC 的认证与读写路径、坏盘 heal 时如何选择参考 format。这些更适合单独拆成后续文章。
 
-这篇先停在一个结论上：**RustFS 的“自描述”不是没有集群拓扑，而是把稳定拓扑写进每块盘的 `format.json`，再用启动参数、format quorum、对象哈希和 `xl.meta` 在运行时重建对象存储视图。**
+这篇先停在一个结论上：**RustFS 的“自描述”不是没有集群拓扑，而是用 `RUSTFS_VOLUMES` 给出预期拓扑，用 `format.json` 固化磁盘身份和 set 布局，用 `pool.bin` 持久化 pool 生命周期状态，再用对象哈希和 `xl.meta/part.N` 完成每次写入。**
 
 ## 参考资料
 
