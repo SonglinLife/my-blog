@@ -18,12 +18,13 @@
   "nodes": [
     {
       "id": "node1",
-      "label": "node1\nD1 lost / D2 lost",
+      "label": "D1 lost / D2 lost\nnode1",
       "x": 130,
       "y": 250,
       "w": 330,
       "h": 180,
-      "tone": "red"
+      "tone": "red",
+      "fontSize": 27
     },
     {
       "id": "node2",
@@ -59,16 +60,18 @@
       "y": 560,
       "w": 470,
       "h": 90,
-      "tone": "green"
+      "tone": "white",
+      "stroke": "#16a34a"
     },
     {
       "id": "failure",
       "label": "set-level tolerance\ncounts missing shards",
-      "x": 760,
+      "x": 820,
       "y": 545,
-      "w": 600,
+      "w": 540,
       "h": 115,
-      "tone": "red"
+      "tone": "white",
+      "stroke": "#dc2626"
     }
   ],
   "arrows": [
@@ -82,7 +85,7 @@
           "y": 500
         },
         {
-          "x": 760,
+          "x": 650,
           "y": 500
         }
       ],
@@ -94,6 +97,7 @@
         "x": 295,
         "y": 500
       },
+      "endGap": 22,
       "step": 1
     }
   ],

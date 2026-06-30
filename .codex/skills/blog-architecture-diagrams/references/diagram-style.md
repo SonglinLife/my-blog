@@ -49,12 +49,14 @@ Before rendering, reserve arrow lanes:
 Rules:
 
 - Keep primary flow arrows short and mostly left-to-right or top-to-bottom.
-- Use orthogonal segments when a direct diagonal would cross labels.
+- Use rounded orthogonal segments when a direct diagonal would cross labels.
 - Route long arrows around zones or through whitespace gaps, not through component text.
 - Use small arrowheads. Huge heads imply emphasis and can hide the real target.
 - Put labels in whitespace next to the arrow. If a label needs a background, keep it small and do not let it sit on top of a busy junction.
-- Put step circles beside the segment start or a bend, not centered on a node border.
+- Put step circles on or immediately beside the segment start or a bend, not centered on a node border.
 - Dashed arrows are secondary. Make them thinner or gray unless the failure/recovery path is the main subject.
+- Do not chain sibling conclusions with arrows. A capacity formula, a tolerance rule, and an operational caveat can be visually grouped, but an arrow between them should mean a real state/control/data transition.
+- Do not default to Bezier curves to fix awkward routing. First fix lanes, node placement, start/end gaps, and bend radius. Curves are acceptable only when their geometry is still easy to validate and maintain.
 
 If an arrow must cross a zone, it should cross empty space inside that zone. If it crosses a node label, the diagram needs a different lane or a different layout.
 

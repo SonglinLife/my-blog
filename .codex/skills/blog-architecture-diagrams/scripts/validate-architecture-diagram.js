@@ -16,10 +16,14 @@ if (!files.length) {
 
 const DEFAULTS = {
   nodePadding: 6,
+  minStartGap: 10,
+  minEndGap: 14,
+  minBendRadius: 8,
   minSegmentLength: 28,
   maxArrowWidth: 4,
   maxPathRatio: 2.2,
   maxBends: 3,
+  maxStepDistanceFromPath: 8,
 };
 
 function parseArgs(argv) {
@@ -84,6 +88,31 @@ function expand(rect, padding) {
 
 function rectsOverlap(a, b) {
   return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+}
+
+function distance(a, b) {
+  return Math.hypot(b.x - a.x, b.y - a.y);
+}
+
+function distancePointToSegment(point, start, end) {
+  const lengthSquared = (end.x - start.x) ** 2 + (end.y - start.y) ** 2;
+  if (!lengthSquared) return distance(point, start);
+
+  const t = Math.max(0, Math.min(1, ((point.x - start.x) * (end.x - start.x) + (point.y - start.y) * (end.y - start.y)) / lengthSquared));
+  const projected = {
+    x: start.x + t * (end.x - start.x),
+    y: start.y + t * (end.y - start.y),
+  };
+  return distance(point, projected);
+}
+
+function distancePointToPath(point, points) {
+  if (points.length < 2) return Infinity;
+  let min = Infinity;
+  for (let i = 1; i < points.length; i += 1) {
+    min = Math.min(min, distancePointToSegment(point, points[i - 1], points[i]));
+  }
+  return min;
 }
 
 function pointInRect(point, rect) {
@@ -242,6 +271,9 @@ function validateFile(file) {
   const zoneLabels = zoneLabelBoxes(spec);
   const issues = [];
   const arrowMetrics = [];
+  const defaultStartGap = spec.defaultStartGap ?? 12;
+  const defaultEndGap = spec.defaultEndGap ?? 18;
+  const defaultBendRadius = spec.defaultBendRadius ?? 14;
 
   function issue(level, message, suggestion) {
     issues.push({ level, message, suggestion });
@@ -259,6 +291,18 @@ function validateFile(file) {
 
     if ((arrow.width ?? 3) > DEFAULTS.maxArrowWidth) {
       issue("error", `arrow ${index + 1} (${name}): width ${arrow.width} is too heavy; keep arrows at ${DEFAULTS.maxArrowWidth}px or less`, "Use a style-level width of 3px for primary arrows and 2-3px for secondary arrows.");
+    }
+
+    if ((arrow.startGap ?? defaultStartGap) < DEFAULTS.minStartGap) {
+      issue("warn", `arrow ${index + 1} (${name}): startGap is less than ${DEFAULTS.minStartGap}px`, "Leave a small visual pause between the source node and the arrow path.");
+    }
+
+    if ((arrow.endGap ?? defaultEndGap) < DEFAULTS.minEndGap) {
+      issue("warn", `arrow ${index + 1} (${name}): endGap is less than ${DEFAULTS.minEndGap}px`, "Increase endGap so the arrowhead points to the target without touching its border.");
+    }
+
+    if (arrow.curve !== false && (arrow.bendRadius ?? defaultBendRadius) < DEFAULTS.minBendRadius && (arrow.points ?? []).length > 0) {
+      issue("warn", `arrow ${index + 1} (${name}): bendRadius is less than ${DEFAULTS.minBendRadius}px`, "Use rounded bends so routed arrows match the diagram's rounded boxes.");
     }
 
     if ((arrow.points ?? []).length > DEFAULTS.maxBends) {
@@ -326,6 +370,15 @@ function validateFile(file) {
 
     const sbox = stepBox(arrow, geometry);
     if (sbox) {
+      const visibleStepPoint = {
+        x: geometry.stepPoint.x + (arrow.stepX ?? 0),
+        y: geometry.stepPoint.y + (arrow.stepY ?? 0),
+      };
+      const stepDistance = distancePointToPath(visibleStepPoint, geometry.points);
+      if (stepDistance > DEFAULTS.maxStepDistanceFromPath) {
+        issue("warn", `arrow ${index + 1} (${name}): step circle is ${stepDistance.toFixed(0)}px from its arrow path`, "Put stepAt on the path or keep stepOffset small enough that the number still reads as part of the arrow.");
+      }
+
       for (const node of nodes.values()) {
         if (rectsOverlap(sbox, expand(node, DEFAULTS.nodePadding))) {
           issue("error", `arrow ${index + 1} (${name}): step circle overlaps node "${node.id}"`, "Move stepAt outside node bounds or add stepOffset.");
@@ -349,6 +402,23 @@ function validateFile(file) {
       return null;
     }
   });
+
+  const styleBySemantic = new Map();
+  for (const [index, arrow] of (spec.arrows ?? []).entries()) {
+    const semantic = arrow.semantic ?? arrow.kind;
+    if (!semantic) continue;
+    const style = JSON.stringify({
+      dashed: Boolean(arrow.dashed),
+      color: arrow.color ?? (arrow.dashed ? spec.dashedAccent ?? "#64748b" : spec.accent ?? "#2563eb"),
+      width: arrow.width ?? 3,
+    });
+    const seen = styleBySemantic.get(semantic);
+    if (seen && seen.style !== style) {
+      issue("warn", `arrow ${index + 1}: semantic "${semantic}" uses a different visual style than arrow ${seen.index + 1}`, "Keep arrows with the same semantic role on the same color, dash, and width.");
+    } else if (!seen) {
+      styleBySemantic.set(semantic, { index, style });
+    }
+  }
 
   for (let i = 0; i < geometries.length; i += 1) {
     for (let j = i + 1; j < geometries.length; j += 1) {

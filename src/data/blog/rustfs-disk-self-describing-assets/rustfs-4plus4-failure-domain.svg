@@ -15,11 +15,11 @@
     <text x="94" y="168" text-anchor="start" font-size="25" font-weight="700" fill="#111827"><tspan x="94" dy="0">One 8-disk set in this lab</tspan></text>
   </g>
 <g class="arrow">
-    <path d="M 295 438 L 295 500 L 760 500 L 876.5666607083688 539.8269424086926" fill="none" stroke="#dc2626" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-head-0)"/>
+    <path d="M 295 442 L 295 486 Q 295 500 309 500 L 636 500 Q 650 500 663.6349189393952 503.1763163438364 L 821.7444305168389 540.0086457453999" fill="none" stroke="#dc2626" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-head-0)"/>
   </g>
 <g class="node">
     <rect x="130" y="250" width="330" height="180" rx="8" fill="#fee2e2" stroke="#dc2626" stroke-width="3"/>
-    <text x="295" y="324.5" text-anchor="middle" font-size="25" font-weight="650" fill="#111827"><tspan x="295" dy="0">node1</tspan><tspan x="295" dy="31">D1 lost / D2 lost</tspan></text>
+    <text x="295" y="323" text-anchor="middle" font-size="27" font-weight="650" fill="#111827"><tspan x="295" dy="0">D1 lost / D2 lost</tspan><tspan x="295" dy="34">node1</tspan></text>
   </g>
 <g class="node">
     <rect x="530" y="250" width="330" height="180" rx="8" fill="#dbeafe" stroke="#2563eb" stroke-width="3"/>
@@ -34,12 +34,12 @@
     <text x="1495" y="324.5" text-anchor="middle" font-size="25" font-weight="650" fill="#0f172a"><tspan x="1495" dy="0">node4</tspan><tspan x="1495" dy="31">P3 / P4</tspan></text>
   </g>
 <g class="node">
-    <rect x="150" y="560" width="470" height="90" rx="8" fill="#dcfce7" stroke="#16a34a" stroke-width="3"/>
-    <text x="385" y="605" text-anchor="middle" font-size="25" font-weight="650" fill="#0f172a"><tspan x="385" dy="0">usable = 4 / (4 + 4) = 50%</tspan></text>
+    <rect x="150" y="560" width="470" height="90" rx="8" fill="#ffffff" stroke="#16a34a" stroke-width="3"/>
+    <text x="385" y="605" text-anchor="middle" font-size="25" font-weight="650" fill="#111827"><tspan x="385" dy="0">usable = 4 / (4 + 4) = 50%</tspan></text>
   </g>
 <g class="node">
-    <rect x="760" y="545" width="600" height="115" rx="8" fill="#fee2e2" stroke="#dc2626" stroke-width="3"/>
-    <text x="1060" y="587" text-anchor="middle" font-size="25" font-weight="650" fill="#111827"><tspan x="1060" dy="0">set-level tolerance</tspan><tspan x="1060" dy="31">counts missing shards</tspan></text>
+    <rect x="820" y="545" width="540" height="115" rx="8" fill="#ffffff" stroke="#dc2626" stroke-width="3"/>
+    <text x="1090" y="587" text-anchor="middle" font-size="25" font-weight="650" fill="#111827"><tspan x="1090" dy="0">set-level tolerance</tspan><tspan x="1090" dy="31">counts missing shards</tspan></text>
   </g>
 <g class="arrow-overlay">
     <circle cx="295" cy="500" r="19" fill="#dc2626" stroke="#ffffff" stroke-width="4"/><text x="295" y="507" text-anchor="middle" font-size="21" font-weight="800" fill="#ffffff">1</text>

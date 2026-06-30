@@ -78,6 +78,14 @@ npm run diagram:render -- \
   src/data/blog/<slug>-assets/<name>.svg
 ```
 
+For review loops, use structured output when useful:
+
+```bash
+npm run diagram:check -- --format json src/data/blog/<slug>-assets/<name>.diagram.json
+```
+
+The validator checks path/node collisions, label overlap, arrow self-crossing, path length ratio, minimum segment length, start/end gap, bend radius, and whether step circles visually belong to their arrow path. Fix those issues in the JSON source before hand-tuning exported SVG.
+
 ## Style Requirements
 
 - Use large plain canvases: `1600x900`, `1800x1000`, or wider for dense systems.
@@ -92,10 +100,12 @@ npm run diagram:render -- \
 - Use numbered step circles for flows. Use dashed arrows only when the surrounding prose or caption defines the meaning.
 - Keep arrows quiet and semantic:
   - route arrows through whitespace corridors, not through component text;
-  - prefer short orthogonal paths with one or two bends;
+  - prefer short rounded orthogonal paths with one or two bends;
   - avoid large triangular heads, long decorative detours, and self-crossing paths;
   - place labels beside arrows or in reserved whitespace, not directly on top of busy line intersections;
-  - put step circles near the start of a segment but offset from labels and node borders.
+  - put step circles on or immediately beside the arrow path, near the start of a segment or a bend, and away from labels and node borders;
+  - never use an arrow to connect parallel conclusions that do not have a real causal/control/data relationship.
+- Use Bezier/freeform curves only as a deliberate custom diagram choice. The default renderer should keep rounded orthogonal routing because it is easier to lint, reproduce, and revise.
 - Avoid huge titles inside the image, decorative gradients, neon accents, slide-cover composition, fake dashboards, fake terminal output, and copied third-party layout.
 
 ## Quality Gate
@@ -107,7 +117,8 @@ Before considering a diagram done:
 - every major label is verified;
 - the diagram answers one concrete question;
 - arrows encode real control/data/state direction;
-- arrows do not cross node labels, pass through step circles, or require the reader to untangle decorative bends;
+- arrows do not cross node labels, visually detach from step circles, or require the reader to untangle decorative bends;
+- parallel conclusions are placed as notes or sibling boxes, not chained by arrows;
 - text is readable at mobile width;
 - no third-party diagram, watermark, badge, or distinctive layout was copied;
 - exported asset is referenced with meaningful alt text and a `Fig.` caption.

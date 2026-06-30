@@ -19,7 +19,7 @@ RustFS 的 `.rustfs.sys/` 目录里，有两个很容易误判的对象：每盘
 
 实验拓扑：RustFS 源码 `main@acdf43937162b247619c6a32a5fe079146ca794d`，4 个节点，每个节点 2 块盘，一共 8 个 disk endpoint。实验形成 1 个 pool、1 个 set，上传一个 2 MiB 对象后观察磁盘文件和源码路径。
 
-![RustFS topology separates startup endpoint input, per-disk identity, pool lifecycle metadata, and PUT object placement into xl.meta and part shards](https://img.f3dlife.com/blog/2026/06/30/rustfs-put-topology-36c4041b-e0d0-4d97-821d-0200962127db.svg)
+![RustFS topology separates startup endpoint input, per-disk identity, pool lifecycle metadata, and PUT object placement into xl.meta and part shards](https://img.f3dlife.com/blog/2026/06/30/rustfs-put-topology-37d7a502-063c-4975-92af-73ebb184796f.svg)
 Fig. 这张图要避免一个误读：`format.json` 和 `pool.bin` 都在磁盘上，但它们不决定同一件事；对象最终落到哪个 set，仍然要走 object key hash 和 `xl.meta/part.N`。
 
 ## 目录
@@ -546,7 +546,7 @@ node4/disk2/dist-bucket/dist-large-2m.bin/<data-dir>/part.1 524352 bytes
 
 实验里的 set 宽度是 8，对象被写成 8 个 `part.1`，每个 524352 B。逻辑对象是 2 MiB，8 个分片合计约 4 MiB，符合 4+4 的空间直觉。
 
-![RustFS 4 plus 4 erasure set shows node1 failure losing two shards in the same set while other nodes keep data and parity shards](https://img.f3dlife.com/blog/2026/06/30/rustfs-4plus4-failure-domain-5f88fb29-4942-4395-bd66-5dc50f27ef81.svg)
+![RustFS 4 plus 4 erasure set shows node1 failure losing two shards in the same set while other nodes keep data and parity shards](https://img.f3dlife.com/blog/2026/06/30/rustfs-4plus4-failure-domain-9cc7f393-4b7d-4fce-b7c5-d9315be6b78f.svg)
 Fig. 图里的红色不是“坏了一台机器”这么简单，而是同一个 set 里少了 2 个 shard；换成 6+2 时，这个差别会直接影响能不能恢复。
 
 纠删码利用率可以先用一个简单公式理解：

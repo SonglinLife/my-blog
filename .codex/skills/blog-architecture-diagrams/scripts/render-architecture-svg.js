@@ -136,6 +136,48 @@ function pointAlong(start, end, distance, offset = 0) {
   };
 }
 
+function distance(a, b) {
+  return Math.hypot(b.x - a.x, b.y - a.y);
+}
+
+function pointToward(point, toward, amount) {
+  const length = distance(point, toward);
+  if (!length) return point;
+  return {
+    x: point.x + ((toward.x - point.x) / length) * amount,
+    y: point.y + ((toward.y - point.y) / length) * amount,
+  };
+}
+
+function roundedPath(points, radius = 14) {
+  if (points.length < 3 || radius <= 0) {
+    return points.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`).join(" ");
+  }
+
+  const commands = [`M ${points[0].x} ${points[0].y}`];
+  for (let i = 1; i < points.length - 1; i += 1) {
+    const prev = points[i - 1];
+    const current = points[i];
+    const next = points[i + 1];
+    const prevLen = distance(prev, current);
+    const nextLen = distance(current, next);
+    const bend = Math.min(radius, prevLen / 2, nextLen / 2);
+
+    if (bend <= 0) {
+      commands.push(`L ${current.x} ${current.y}`);
+      continue;
+    }
+
+    const before = pointToward(current, prev, bend);
+    const after = pointToward(current, next, bend);
+    commands.push(`L ${before.x} ${before.y}`);
+    commands.push(`Q ${current.x} ${current.y} ${after.x} ${after.y}`);
+  }
+  const last = points.at(-1);
+  commands.push(`L ${last.x} ${last.y}`);
+  return commands.join(" ");
+}
+
 function nodeBox(idOrPoint) {
   if (typeof idOrPoint === "string") {
     const item = nodes.get(idOrPoint);
@@ -250,15 +292,13 @@ function arrowGeometry(arrow, index) {
   const middle = arrow.points ?? [];
   const rawPoints = [start, ...middle, end];
   if (typeof arrow.from === "string" && rawPoints[1]) {
-    start = moveToward(start, rawPoints[1], arrow.startGap ?? 8);
+    start = moveToward(start, rawPoints[1], arrow.startGap ?? spec.defaultStartGap ?? 12);
   }
   if (typeof arrow.to === "string" && rawPoints.at(-2)) {
-    end = moveToward(end, rawPoints.at(-2), arrow.endGap ?? 16);
+    end = moveToward(end, rawPoints.at(-2), arrow.endGap ?? spec.defaultEndGap ?? 18);
   }
   const points = [start, ...middle, end];
-  const d = points
-    .map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`)
-    .join(" ");
+  const d = arrow.curve === false ? roundedPath(points, 0) : roundedPath(points, arrow.bendRadius ?? spec.defaultBendRadius ?? 14);
   const stroke = arrowStroke(arrow);
   const marker = arrow.marker === false ? undefined : `url(#${markerId(index)})`;
   const mid = points[Math.floor((points.length - 1) / 2)];

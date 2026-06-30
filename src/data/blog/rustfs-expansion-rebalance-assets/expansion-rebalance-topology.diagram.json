@@ -210,21 +210,23 @@
       "to": "new-objects",
       "label": "object shards rewritten",
       "labelWidth": 235,
-      "labelX": 1018,
-      "labelY": 625,
+      "labelX": 1040,
+      "labelY": 595,
       "stepAt": {
-        "x": 890,
-        "y": 690
+        "x": 900,
+        "y": 650
       },
       "step": 3
     },
     {
       "from": "replacement",
-      "to": "p1n5",
+      "to": {
+        "x": 1238,
+        "y": 176
+      },
       "dashed": true,
       "color": "#64748b",
       "width": 3,
-      "endGap": 0,
       "points": [
         {
           "x": 1670,
@@ -232,11 +234,7 @@
         },
         {
           "x": 1670,
-          "y": 330
-        },
-        {
-          "x": 1238,
-          "y": 330
+          "y": 176
         }
       ],
       "label": "auto heal / recreate missing shard",
@@ -244,8 +242,8 @@
       "labelX": 1460,
       "labelY": 760,
       "stepAt": {
-        "x": 1580,
-        "y": 818
+        "x": 1570,
+        "y": 868
       },
       "step": 4
     }

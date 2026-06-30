@@ -196,9 +196,16 @@ Before accepting a generated diagram, inspect arrows first. Reject or revise the
 - an arrow crosses through component text;
 - an arrow label sits on top of a busy line or junction;
 - a step number overlaps a node border, arrowhead, or label;
+- a step number is visually detached from the arrow it numbers;
 - a dashed secondary path visually dominates the primary path;
 - arrowheads are so large that they hide the target;
 - a path takes a decorative detour instead of following a readable lane.
+
+Prefer rounded orthogonal paths for the project SVG renderer. A sharp polyline usually means the route is unresolved, not that the diagram needs Bezier curves. Use Bezier/freeform curves only when the validator and surrounding diagram contract can still prove non-overlap, direction, and label placement.
+
+Do not use arrows to connect parallel conclusions. For example, a capacity formula and a failure-tolerance rule may sit near the same topology, but an arrow between them implies causality. Use arrows for real control flow, data flow, state change, or recovery direction; use adjacent notes or parallel boxes for interpretation.
+
+When one semantic path spans multiple arrows, keep the visual style consistent: same color, width, dash pattern, and step placement convention. Use saturation and dash style to separate primary paths from metadata reloads, background healing, or secondary checks.
 
 ### Hand-Drawn Diagram Checklist
 
@@ -281,6 +288,8 @@ Fig. diagram.
 - [ ] The image answers a concrete question in the surrounding section.
 - [ ] Labels are exact and readable at mobile width.
 - [ ] Arrows have clear direction and meaning.
+- [ ] Step circles sit on or immediately beside their arrow paths and do not cover labels.
+- [ ] Arrows do not imply causality between parallel conclusions.
 - [ ] Color is used consistently across the article.
 - [ ] Caption starts with `Fig.` and explains the scenario.
 - [ ] Alt text is meaningful.
