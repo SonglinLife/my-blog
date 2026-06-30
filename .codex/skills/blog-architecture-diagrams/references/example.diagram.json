@@ -1,0 +1,144 @@
+{
+  "title": "Example metadata write path",
+  "width": 1600,
+  "height": 900,
+  "background": "#fbfbf7",
+  "accent": "#2563eb",
+  "zones": [
+    {
+      "id": "client-node",
+      "label": "Client node",
+      "x": 80,
+      "y": 110,
+      "w": 440,
+      "h": 610,
+      "tone": "green"
+    },
+    {
+      "id": "metadata",
+      "label": "Metadata layer",
+      "x": 620,
+      "y": 110,
+      "w": 360,
+      "h": 610,
+      "tone": "blue"
+    },
+    {
+      "id": "object-layer",
+      "label": "Persistent data layer",
+      "x": 1080,
+      "y": 110,
+      "w": 420,
+      "h": 610,
+      "tone": "yellow"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "app",
+      "label": "Application\nwrite()",
+      "x": 150,
+      "y": 220,
+      "w": 290,
+      "h": 110,
+      "tone": "green"
+    },
+    {
+      "id": "client",
+      "label": "Filesystem client\nchunk/slice mapping",
+      "x": 150,
+      "y": 450,
+      "w": 290,
+      "h": 125,
+      "tone": "green"
+    },
+    {
+      "id": "meta",
+      "label": "Metadata engine\ninode / chunk keys",
+      "x": 670,
+      "y": 300,
+      "w": 260,
+      "h": 150,
+      "tone": "blue",
+      "shape": "database"
+    },
+    {
+      "id": "bucket",
+      "label": "Object store\nchunk objects",
+      "x": 1160,
+      "y": 310,
+      "w": 260,
+      "h": 130,
+      "tone": "yellow"
+    }
+  ],
+  "arrows": [
+    {
+      "from": "app",
+      "to": "client",
+      "label": "POSIX write",
+      "labelWidth": 140,
+      "labelX": 310,
+      "labelY": 400,
+      "stepAt": {
+        "x": 455,
+        "y": 380
+      },
+      "step": 1
+    },
+    {
+      "from": "client",
+      "to": "meta",
+      "label": "update metadata",
+      "labelWidth": 170,
+      "labelX": 575,
+      "labelY": 380,
+      "stepAt": {
+        "x": 515,
+        "y": 445
+      },
+      "step": 2
+    },
+    {
+      "from": "client",
+      "to": "bucket",
+      "points": [
+        {
+          "x": 560,
+          "y": 640
+        },
+        {
+          "x": 1220,
+          "y": 640
+        }
+      ],
+      "label": "upload chunk data",
+      "labelWidth": 190,
+      "step": 3
+    }
+  ],
+  "notes": [
+    {
+      "text": "This is a style and schema example. Replace every label with verified names from the post.",
+      "x": 90,
+      "y": 770,
+      "w": 960
+    }
+  ],
+  "legend": {
+    "items": [
+      {
+        "tone": "green",
+        "label": "client / agent"
+      },
+      {
+        "tone": "blue",
+        "label": "metadata / control"
+      },
+      {
+        "tone": "yellow",
+        "label": "persistent state"
+      }
+    ]
+  }
+}

@@ -160,13 +160,45 @@ Final technical diagrams should be hand-built from verified facts in an editable
 
 Preferred order:
 
-1. Create an editable diagram first: SVG, Mermaid, Excalidraw, draw.io, Google Slides/Drawings-style canvas, or a small script that renders a diagram.
+1. Create an editable diagram first: programmatic SVG, handwritten SVG/HTML/CSS, Excalidraw, draw.io, Google Slides/Drawings-style canvas, or a small script that renders a diagram.
 2. Export the final display asset as PNG or SVG.
 3. Keep the editable source next to the exported image when practical, for example under `src/data/blog/<slug>-assets/`.
 4. Use source-backed screenshots for real UI, logs, object-store state, metrics, and terminal output.
 5. Use AI image generation only as a rough layout sketch for a diagram without exact labels, then recreate the final image manually in an editable tool.
 
 Never ask an image model for a generic "beautiful technology illustration". For final diagrams, exact labels, paths, arrows, and component boundaries matter more than painterly polish.
+
+### Project Diagram Skill
+
+When an AI agent needs to create or revise a serious architecture/workflow/topology/state-change diagram, use the project skill at `.codex/skills/blog-architecture-diagrams/`.
+
+That skill provides a JSON-to-SVG renderer:
+
+```bash
+npm run diagram:check -- src/data/blog/<slug>-assets/<name>.diagram.json
+npm run diagram:render -- \
+  src/data/blog/<slug>-assets/<name>.diagram.json \
+  src/data/blog/<slug>-assets/<name>.svg
+```
+
+Use it when the diagram needs explicit zones, numbered arrows, storage layouts, host/pod/disk topology, repeated visual vocabulary, or mobile-readable labels. If `diagram:check` fails, fix the JSON layout before rendering or embedding the image.
+
+### Mermaid Boundary
+
+Mermaid is only a lightweight draft tool for simple linear flows or small sequence diagrams. Do not use Mermaid as the final format for complex systems diagrams when the post needs precise layout, ownership boundaries, storage topology, before/after state, cropped variants, or non-overlapping labels.
+
+If a Mermaid diagram starts accumulating layout hacks, replace it with programmatic SVG or handwritten SVG/HTML/CSS.
+
+### Arrow QA
+
+Before accepting a generated diagram, inspect arrows first. Reject or revise the diagram when:
+
+- an arrow crosses through component text;
+- an arrow label sits on top of a busy line or junction;
+- a step number overlaps a node border, arrowhead, or label;
+- a dashed secondary path visually dominates the primary path;
+- arrowheads are so large that they hide the target;
+- a path takes a decorative detour instead of following a readable lane.
 
 ### Hand-Drawn Diagram Checklist
 

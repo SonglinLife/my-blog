@@ -161,21 +161,25 @@
       "points": [
         {
           "x": 330,
-          "y": 320
-        },
-        {
-          "x": 360,
           "y": 470
         },
         {
-          "x": 470,
-          "y": 585
+          "x": 430,
+          "y": 545
+        },
+        {
+          "x": 430,
+          "y": 650
         }
       ],
       "label": "PUT before-expand/obj-*.bin",
       "labelWidth": 290,
       "labelX": 475,
-      "labelY": 470,
+      "labelY": 532,
+      "stepAt": {
+        "x": 330,
+        "y": 470
+      },
       "step": 1
     },
     {
@@ -184,21 +188,21 @@
       "points": [
         {
           "x": 330,
-          "y": 560
+          "y": 760
         },
         {
-          "x": 980,
-          "y": 510
-        },
-        {
-          "x": 1070,
-          "y": 650
+          "x": 1120,
+          "y": 760
         }
       ],
       "label": "post-expansion rebalance",
       "labelWidth": 270,
-      "labelX": 880,
-      "labelY": 500,
+      "labelX": 780,
+      "labelY": 785,
+      "stepAt": {
+        "x": 330,
+        "y": 760
+      },
       "step": 2
     },
     {
@@ -207,17 +211,42 @@
       "label": "object shards rewritten",
       "labelWidth": 235,
       "labelX": 1018,
-      "labelY": 675,
+      "labelY": 625,
+      "stepAt": {
+        "x": 890,
+        "y": 690
+      },
       "step": 3
     },
     {
       "from": "replacement",
       "to": "p1n5",
       "dashed": true,
+      "color": "#64748b",
+      "width": 3,
+      "endGap": 0,
+      "points": [
+        {
+          "x": 1670,
+          "y": 868
+        },
+        {
+          "x": 1670,
+          "y": 330
+        },
+        {
+          "x": 1238,
+          "y": 330
+        }
+      ],
       "label": "auto heal / recreate missing shard",
       "labelWidth": 330,
-      "labelX": 1215,
-      "labelY": 775,
+      "labelX": 1460,
+      "labelY": 760,
+      "stepAt": {
+        "x": 1580,
+        "y": 818
+      },
       "step": 4
     }
   ],

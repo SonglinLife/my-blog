@@ -17,7 +17,7 @@ RustFS 的扩缩容边界容易被误判：看起来集群里有 node、disk、s
 
 实验使用 RustFS `1.0.0-beta.8`，CLI `rc v0.1.25`。拓扑是 8 个容器节点，每个节点 2 块 loopback ext4 磁盘。loopback 不是为了模拟性能，而是为了让 RustFS 看到每块盘都是独立设备；普通 bind mount 在同一个宿主文件系统上，会影响容量统计和 rebalance 判断。
 
-![RustFS expansion workflow with pool 0 node1 to node4, pool 1 node5 to node8, rebalance moving object shards, and node5 disk replacement healing](https://img.f3dlife.com/blog/2026/06/30/expansion-rebalance-topology-95df4aaa-0353-4f11-8ac2-73bdf124fe9c.svg)
+![RustFS expansion workflow with pool 0 node1 to node4, pool 1 node5 to node8, rebalance moving object shards, and node5 disk replacement healing](https://img.f3dlife.com/blog/2026/06/30/expansion-rebalance-topology-5ff8e0c2-9d45-4239-acc6-5dc790782a01.svg)
 Fig. RustFS 扩容与回填路径：对象先写入 `pool 0`，`rc admin expand start` 触发 post-expansion rebalance，把一部分对象 shard 写到 `pool 1`；换掉 `node5/disk1` 后，同一 erasure set 的其他磁盘把缺失 shard 回填到新盘。
 
 ## 目录

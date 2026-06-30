@@ -1,0 +1,4 @@
+interface:
+  display_name: "Blog Architecture Diagrams"
+  short_description: "Precise editable diagrams for blog posts"
+  default_prompt: "Use $blog-architecture-diagrams to create a precise editable architecture diagram for this technical blog post."
