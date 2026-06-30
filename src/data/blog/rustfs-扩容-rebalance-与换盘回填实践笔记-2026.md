@@ -17,39 +17,8 @@ RustFS 的扩缩容边界容易被误判：看起来集群里有 node、disk、s
 
 实验使用 RustFS `1.0.0-beta.8`，CLI `rc v0.1.25`。拓扑是 8 个容器节点，每个节点 2 块 loopback ext4 磁盘。loopback 不是为了模拟性能，而是为了让 RustFS 看到每块盘都是独立设备；普通 bind mount 在同一个宿主文件系统上，会影响容量统计和 rebalance 判断。
 
-```mermaid
-flowchart LR
-  client["S3 client / rc"]
-
-  subgraph pool0["pool 0: node{1...4}:9000/data{1...2}"]
-    p0d1["node1/disk1"]
-    p0d2["node1/disk2"]
-    p0d3["node2/disk1"]
-    p0d4["node2/disk2"]
-    p0d5["node3/disk1"]
-    p0d6["node3/disk2"]
-    p0d7["node4/disk1"]
-    p0d8["node4/disk2"]
-  end
-
-  subgraph pool1["pool 1: node{5...8}:9000/data{1...2}"]
-    p1d1["node5/disk1"]
-    p1d2["node5/disk2"]
-    p1d3["node6/disk1"]
-    p1d4["node6/disk2"]
-    p1d5["node7/disk1"]
-    p1d6["node7/disk2"]
-    p1d7["node8/disk1"]
-    p1d8["node8/disk2"]
-  end
-
-  client -->|"PUT before-expand/obj-*.bin"| pool0
-  pool0 -->|"rc admin expand start local"| pool1
-  p1d1 -. "replace empty disk" .-> p1d1
-  pool1 -->|"auto heal / recreate missing shard"| p1d1
-```
-
-Fig. 实验路径：对象先写入 `pool 0`，扩容后 rebalance 把一部分对象迁到 `pool 1`；换掉 `node5/disk1` 后，同一 erasure set 的其他磁盘把缺失 shard 回填到新盘。
+![RustFS expansion workflow with pool 0 node1 to node4, pool 1 node5 to node8, rebalance moving object shards, and node5 disk replacement healing](https://img.f3dlife.com/blog/2026/06/30/expansion-rebalance-topology-95df4aaa-0353-4f11-8ac2-73bdf124fe9c.svg)
+Fig. RustFS 扩容与回填路径：对象先写入 `pool 0`，`rc admin expand start` 触发 post-expansion rebalance，把一部分对象 shard 写到 `pool 1`；换掉 `node5/disk1` 后，同一 erasure set 的其他磁盘把缺失 shard 回填到新盘。
 
 ## 目录
 

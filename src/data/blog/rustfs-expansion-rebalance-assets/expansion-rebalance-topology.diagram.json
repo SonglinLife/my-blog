@@ -1,0 +1,246 @@
+{
+  "title": "",
+  "width": 1800,
+  "height": 980,
+  "background": "#fbfbf7",
+  "accent": "#2563eb",
+  "zones": [
+    {
+      "id": "client-zone",
+      "label": "Entry",
+      "x": 60,
+      "y": 150,
+      "w": 250,
+      "h": 590,
+      "tone": "green"
+    },
+    {
+      "id": "pool0",
+      "label": "pool 0\nnode{1...4} / data{1...2}",
+      "x": 390,
+      "y": 90,
+      "w": 560,
+      "h": 720,
+      "tone": "blue",
+      "labelSize": 23
+    },
+    {
+      "id": "pool1",
+      "label": "pool 1\nnode{5...8} / data{1...2}",
+      "x": 1090,
+      "y": 90,
+      "w": 560,
+      "h": 720,
+      "tone": "yellow",
+      "labelSize": 23
+    }
+  ],
+  "nodes": [
+    {
+      "id": "client",
+      "label": "S3 client\nrc CLI",
+      "x": 95,
+      "y": 260,
+      "w": 180,
+      "h": 120,
+      "tone": "green"
+    },
+    {
+      "id": "command",
+      "label": "rc admin\nexpand start",
+      "x": 95,
+      "y": 500,
+      "w": 180,
+      "h": 120,
+      "tone": "green"
+    },
+    {
+      "id": "p0n1",
+      "label": "node1\n/data1 /data2",
+      "x": 435,
+      "y": 190,
+      "w": 205,
+      "h": 105,
+      "tone": "blue"
+    },
+    {
+      "id": "p0n2",
+      "label": "node2\n/data1 /data2",
+      "x": 695,
+      "y": 190,
+      "w": 205,
+      "h": 105,
+      "tone": "blue"
+    },
+    {
+      "id": "p0n3",
+      "label": "node3\n/data1 /data2",
+      "x": 435,
+      "y": 350,
+      "w": 205,
+      "h": 105,
+      "tone": "blue"
+    },
+    {
+      "id": "p0n4",
+      "label": "node4\n/data1 /data2",
+      "x": 695,
+      "y": 350,
+      "w": 205,
+      "h": 105,
+      "tone": "blue"
+    },
+    {
+      "id": "old-objects",
+      "label": "before-expand/obj-000..095\n96 objects initially in pool 0",
+      "x": 475,
+      "y": 585,
+      "w": 385,
+      "h": 130,
+      "tone": "yellow"
+    },
+    {
+      "id": "p1n5",
+      "label": "node5\n/data1 /data2",
+      "x": 1135,
+      "y": 190,
+      "w": 205,
+      "h": 105,
+      "tone": "yellow"
+    },
+    {
+      "id": "p1n6",
+      "label": "node6\n/data1 /data2",
+      "x": 1395,
+      "y": 190,
+      "w": 205,
+      "h": 105,
+      "tone": "yellow"
+    },
+    {
+      "id": "p1n7",
+      "label": "node7\n/data1 /data2",
+      "x": 1135,
+      "y": 350,
+      "w": 205,
+      "h": 105,
+      "tone": "yellow"
+    },
+    {
+      "id": "p1n8",
+      "label": "node8\n/data1 /data2",
+      "x": 1395,
+      "y": 350,
+      "w": 205,
+      "h": 105,
+      "tone": "yellow"
+    },
+    {
+      "id": "new-objects",
+      "label": "rebalance result\n50 objects move to pool 1\nnew_pool_files=800",
+      "x": 1175,
+      "y": 585,
+      "w": 385,
+      "h": 130,
+      "tone": "yellow"
+    },
+    {
+      "id": "replacement",
+      "label": "replace node5/disk1\nempty disk -> healed shard",
+      "x": 1145,
+      "y": 820,
+      "w": 395,
+      "h": 95,
+      "tone": "red"
+    }
+  ],
+  "arrows": [
+    {
+      "from": "client",
+      "to": "old-objects",
+      "points": [
+        {
+          "x": 330,
+          "y": 320
+        },
+        {
+          "x": 360,
+          "y": 470
+        },
+        {
+          "x": 470,
+          "y": 585
+        }
+      ],
+      "label": "PUT before-expand/obj-*.bin",
+      "labelWidth": 290,
+      "labelX": 475,
+      "labelY": 470,
+      "step": 1
+    },
+    {
+      "from": "command",
+      "to": "new-objects",
+      "points": [
+        {
+          "x": 330,
+          "y": 560
+        },
+        {
+          "x": 980,
+          "y": 510
+        },
+        {
+          "x": 1070,
+          "y": 650
+        }
+      ],
+      "label": "post-expansion rebalance",
+      "labelWidth": 270,
+      "labelX": 880,
+      "labelY": 500,
+      "step": 2
+    },
+    {
+      "from": "old-objects",
+      "to": "new-objects",
+      "label": "object shards rewritten",
+      "labelWidth": 235,
+      "labelX": 1018,
+      "labelY": 675,
+      "step": 3
+    },
+    {
+      "from": "replacement",
+      "to": "p1n5",
+      "dashed": true,
+      "label": "auto heal / recreate missing shard",
+      "labelWidth": 330,
+      "labelX": 1215,
+      "labelY": 775,
+      "step": 4
+    }
+  ],
+  "legend": {
+    "x": 60,
+    "y": 900,
+    "items": [
+      {
+        "tone": "green",
+        "label": "client / admin command"
+      },
+      {
+        "tone": "blue",
+        "label": "old pool"
+      },
+      {
+        "tone": "yellow",
+        "label": "disk / object state"
+      },
+      {
+        "tone": "red",
+        "label": "failure / replacement"
+      }
+    ]
+  }
+}
