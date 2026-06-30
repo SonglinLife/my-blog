@@ -1,0 +1,119 @@
+{
+  "title": "RustFS 4+4 failure domain",
+  "width": 1800,
+  "height": 820,
+  "background": "#fbfbf7",
+  "accent": "#2563eb",
+  "zones": [
+    {
+      "id": "set",
+      "label": "One 8-disk set in this lab",
+      "x": 70,
+      "y": 130,
+      "w": 1660,
+      "h": 600,
+      "tone": "gray"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "node1",
+      "label": "node1\nD1 lost / D2 lost",
+      "x": 130,
+      "y": 250,
+      "w": 330,
+      "h": 180,
+      "tone": "red"
+    },
+    {
+      "id": "node2",
+      "label": "node2\nD3 / D4",
+      "x": 530,
+      "y": 250,
+      "w": 330,
+      "h": 180,
+      "tone": "blue"
+    },
+    {
+      "id": "node3",
+      "label": "node3\nP1 / P2",
+      "x": 930,
+      "y": 250,
+      "w": 330,
+      "h": 180,
+      "tone": "yellow"
+    },
+    {
+      "id": "node4",
+      "label": "node4\nP3 / P4",
+      "x": 1330,
+      "y": 250,
+      "w": 330,
+      "h": 180,
+      "tone": "yellow"
+    },
+    {
+      "id": "capacity",
+      "label": "usable = 4 / (4 + 4) = 50%",
+      "x": 150,
+      "y": 560,
+      "w": 470,
+      "h": 90,
+      "tone": "green"
+    },
+    {
+      "id": "failure",
+      "label": "set-level tolerance\ncounts missing shards",
+      "x": 760,
+      "y": 545,
+      "w": 600,
+      "h": 115,
+      "tone": "red"
+    }
+  ],
+  "arrows": [
+    {
+      "from": "node1",
+      "to": "failure",
+      "color": "#dc2626",
+      "points": [
+        {
+          "x": 295,
+          "y": 500
+        },
+        {
+          "x": 760,
+          "y": 500
+        }
+      ],
+      "label": "node1 failure removes 2 shards",
+      "labelWidth": 330,
+      "labelX": 575,
+      "labelY": 470,
+      "stepAt": {
+        "x": 295,
+        "y": 500
+      },
+      "step": 1
+    }
+  ],
+  "notes": [],
+  "legend": {
+    "x": 70,
+    "y": 55,
+    "items": [
+      {
+        "tone": "red",
+        "label": "lost shard / failure"
+      },
+      {
+        "tone": "blue",
+        "label": "data shard"
+      },
+      {
+        "tone": "yellow",
+        "label": "parity shard"
+      }
+    ]
+  }
+}

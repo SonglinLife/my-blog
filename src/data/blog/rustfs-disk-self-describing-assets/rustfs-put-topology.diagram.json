@@ -1,0 +1,183 @@
+{
+  "title": "RustFS self-describing disk model",
+  "width": 1800,
+  "height": 900,
+  "background": "#fbfbf7",
+  "accent": "#2563eb",
+  "zones": [
+    {
+      "id": "inputs",
+      "label": "Startup inputs",
+      "x": 70,
+      "y": 110,
+      "w": 420,
+      "h": 350,
+      "tone": "green"
+    },
+    {
+      "id": "runtime",
+      "label": "Runtime view",
+      "x": 580,
+      "y": 110,
+      "w": 420,
+      "h": 350,
+      "tone": "blue"
+    },
+    {
+      "id": "disk-state",
+      "label": "Per-disk state",
+      "x": 1090,
+      "y": 110,
+      "w": 640,
+      "h": 350,
+      "tone": "yellow"
+    },
+    {
+      "id": "object-path",
+      "label": "PUT result: pool 0 / set 0",
+      "x": 250,
+      "y": 560,
+      "w": 1230,
+      "h": 300,
+      "tone": "blue"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "volumes",
+      "label": "RUSTFS_VOLUMES\n8 endpoint list",
+      "x": 120,
+      "y": 210,
+      "w": 300,
+      "h": 110,
+      "tone": "green"
+    },
+    {
+      "id": "node",
+      "label": "Any RustFS node\nlocal + remote disks",
+      "x": 630,
+      "y": 205,
+      "w": 310,
+      "h": 120,
+      "tone": "blue"
+    },
+    {
+      "id": "format",
+      "label": "format.json\nid / this / sets",
+      "x": 1145,
+      "y": 185,
+      "w": 250,
+      "h": 120,
+      "tone": "yellow",
+      "fontSize": 23
+    },
+    {
+      "id": "poolbin",
+      "label": ".rustfs.sys/pool.bin\nPoolMeta\nlifecycle state",
+      "x": 1420,
+      "y": 185,
+      "w": 260,
+      "h": 135,
+      "tone": "yellow",
+      "fontSize": 21
+    },
+    {
+      "id": "hash",
+      "label": "sip_hash(object, set_count, deployment_id)\nselects set 0",
+      "x": 585,
+      "y": 625,
+      "w": 445,
+      "h": 95,
+      "tone": "blue"
+    },
+    {
+      "id": "object-meta",
+      "label": "bucket/object/xl.meta\nlogical size / etag / erasure info",
+      "x": 585,
+      "y": 750,
+      "w": 445,
+      "h": 90,
+      "tone": "yellow",
+      "fontSize": 22
+    },
+    {
+      "id": "shards",
+      "label": "8 x part.1 shards\nnode1..node4\ndisk1..disk2",
+      "x": 1120,
+      "y": 665,
+      "w": 315,
+      "h": 140,
+      "tone": "yellow",
+      "fontSize": 22
+    }
+  ],
+  "arrows": [
+    {
+      "from": "volumes",
+      "to": "node",
+      "stepAt": {
+        "x": 515,
+        "y": 305
+      },
+      "step": 1
+    },
+    {
+      "from": "format",
+      "to": "node",
+      "dashed": true,
+      "color": "#64748b",
+      "stepAt": {
+        "x": 1085,
+        "y": 305
+      },
+      "step": 2
+    },
+    {
+      "from": "node",
+      "to": "hash",
+      "points": [
+        {
+          "x": 785,
+          "y": 535
+        }
+      ],
+      "label": "PUT object",
+      "labelWidth": 120,
+      "labelX": 930,
+      "labelY": 545,
+      "stepAt": {
+        "x": 785,
+        "y": 535
+      },
+      "step": 3
+    },
+    {
+      "from": "hash",
+      "to": "shards",
+      "stepAt": {
+        "x": 1080,
+        "y": 735
+      },
+      "step": 4
+    }
+  ],
+  "notes": [],
+  "legend": {
+    "x": 70,
+    "y": 45,
+    "items": [
+      {
+        "tone": "green",
+        "label": "startup input"
+      },
+      {
+        "tone": "blue",
+        "label": "runtime / request path"
+      },
+      {
+        "tone": "yellow",
+        "label": "persisted metadata / shard"
+      }
+    ]
+  }
+}

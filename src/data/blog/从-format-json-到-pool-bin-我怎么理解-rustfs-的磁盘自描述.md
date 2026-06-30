@@ -15,12 +15,12 @@ RustFS 的 `.rustfs.sys/` 目录里，有两个很容易误判的对象：每盘
 
 如果只看目录结构，很容易把它们理解成某种中心元数据。但从启动拓扑、磁盘身份、对象 hash 和 `xl.meta/part.N` 的关系看，RustFS 的恢复模型更像一组分层规则。
 
-本文按运行顺序展开：先看一个分布式 RustFS 怎么启动，为什么任意节点都能恢复同一张 pool/set/disk 拓扑；再把 `pool.bin` 放回 pool 生命周期账本的位置；最后沿一次 2 MiB PUT 看对象怎么进入 set，并落成 `xl.meta` 和 `part.1`。
+本文沿运行顺序拆开这几层：`RUSTFS_VOLUMES` 先给出 endpoint 拓扑，`format.json` 再让每块盘证明自己的身份，`pool.bin` 保存 pool 生命周期状态；对象真正写入时，还要经过 object key hash、set 选择、`xl.meta` 和 `part.1`。
 
 实验拓扑：RustFS 源码 `main@acdf43937162b247619c6a32a5fe079146ca794d`，4 个节点，每个节点 2 块盘，一共 8 个 disk endpoint。实验形成 1 个 pool、1 个 set，上传一个 2 MiB 对象后观察磁盘文件和源码路径。
 
-![RustFS PUT 请求从 S3 客户端进入任意节点，再根据 RUSTFS_VOLUMES、format.json 和对象名哈希写入 pool 0 set 0 的 8 个磁盘分片](https://img.f3dlife.com/blog/2026/06/29/rustfs-put-topology-437921a8-83f3-4cf9-a355-854be73fec60.svg)
-Fig. RustFS 4 节点 8 磁盘实验拓扑：`RUSTFS_VOLUMES` 给出 endpoint 列表，`format.json` 给出磁盘身份和 set 布局，对象名哈希选择 set，`xl.meta/part.1` 保存对象元数据和分片。
+![RustFS topology separates startup endpoint input, per-disk identity, pool lifecycle metadata, and PUT object placement into xl.meta and part shards](https://img.f3dlife.com/blog/2026/06/30/rustfs-put-topology-36c4041b-e0d0-4d97-821d-0200962127db.svg)
+Fig. 这张图要避免一个误读：`format.json` 和 `pool.bin` 都在磁盘上，但它们不决定同一件事；对象最终落到哪个 set，仍然要走 object key hash 和 `xl.meta/part.N`。
 
 ## 目录
 
@@ -36,7 +36,7 @@ Fig. RustFS 4 节点 8 磁盘实验拓扑：`RUSTFS_VOLUMES` 给出 endpoint 列
 
 ## 1 问题与环境
 
-本文只验证四类证据：启动日志与 `RUSTFS_VOLUMES`、`format.json` 内容、一次 2 MiB PUT 后的 `xl.meta`/`part.1` 写入结果、RustFS 源码里的启动/set 选择/pool metadata 入口。不覆盖 rebalance/decommission 的完整状态机。
+证据只取四类：启动日志与 `RUSTFS_VOLUMES`、`format.json` 内容、一次 2 MiB PUT 后的 `xl.meta`/`part.1` 写入结果、RustFS 源码里的启动/set 选择/pool metadata 入口。rebalance/decommission 的完整状态机不放进本文。
 
 要回答的问题是：
 
@@ -64,7 +64,7 @@ Fig. RustFS 4 节点 8 磁盘实验拓扑：`RUSTFS_VOLUMES` 给出 endpoint 列
 
 **set 是 pool 内部的对象放置组，也是纠删码的工作边界。** 一个 pool 会被切成一个或多个 set；每个 set 有固定数量的磁盘。对象写入时，RustFS 先用 object key hash 选择 set，再在这个 set 内做纠删码切分，把 `xl.meta` 和 `part.N` shard 写到 set 的磁盘上。
 
-在这篇实验里，8 个 disk endpoint 形成 1 个 pool，并且这个 pool 里只有 1 个 8 盘 set：
+在本实验里，8 个 disk endpoint 形成 1 个 pool，并且这个 pool 里只有 1 个 8 盘 set：
 
 ```text
 pool 0
@@ -81,13 +81,11 @@ pool 0
 
 后面所有现象都围绕这个边界展开：`format.json` 让每块盘知道自己在 set 里的身份，`pool.bin` 让运行时知道 pool 的生命周期状态，PUT 对象时再由 object key hash 进入 set。
 
-下面所有输出都来自这个实验环境。为避免发布本机挂载路径，命令输出里的 `/data/rustfs-dist/` 前缀会显式省略成 `nodeN/diskN/` 这种实验拓扑路径；对象 data dir UUID 在路径里用 `<data-dir>` 标记。
+后面的输出都来自这个环境。为避免发布本机挂载路径，命令输出里的 `/data/rustfs-dist/` 前缀会显式省略成 `nodeN/diskN/`；对象 data dir UUID 在路径里用 `<data-dir>` 标记。
 
 ## 2 启动入口：RUSTFS_VOLUMES 定义同一张拓扑图
 
-先看实验是怎么起的。
-
-这篇里的“4 节点 8 磁盘”不是 4 台真实服务器，而是在一台机器上用 4 个 RustFS 进程模拟 4 个节点。每个节点挂两块目录盘：
+本实验的“4 节点 8 磁盘”不是 4 台真实服务器，而是在一台机器上用 4 个 RustFS 进程模拟 4 个节点。每个节点挂两块目录盘：
 
 ```text
 node1: /data1, /data2  -> <mount>/rustfs-dist/node1/disk1, disk2
@@ -134,7 +132,7 @@ done
 
 这不是唯一部署方式。真实多机时，`node1` 到 `node4` 会换成机器 DNS/IP，本地挂载路径会换成各机器自己的磁盘路径；关键不变：**所有节点拿到同一份 `RUSTFS_VOLUMES` endpoint 列表。**
 
-实际日志能看到这个拓扑被识别出来。下面是 node1 日志中的几行；`/data1`、`/data2` 是 node1 本地盘，`http://node2:9000/data1` 这类是远端盘：
+node1 日志里已经能看到这个拓扑被识别出来；`/data1`、`/data2` 是 node1 本地盘，`http://node2:9000/data1` 这类是远端盘：
 
 ```text
 {"timestamp":"2026-06-29T01:38:39.237414309Z","level":"INFO","fields":{"message":"Disk \"/data1\" is online"},"target":"rustfs_ecstore::set_disk::lock","filename":"crates/ecstore/src/set_disk/lock.rs","line_number":262,"threadName":"rustfs-worker","threadId":"ThreadId(29)"}
@@ -161,7 +159,7 @@ pub volumes: Vec<String>,
 [`rustfs/src/config/cli.rs#L172-L182`](https://github.com/SonglinLife/rustfs/blob/acdf43937162b247619c6a32a5fe079146ca794d/rustfs/src/config/cli.rs#L172-L182)
 说明 `ServerOpts.volumes` 可以从 `RUSTFS_VOLUMES` 读取，并按空格切分成 endpoint 列表。
 
-也就是说，多机部署不是靠节点随便广播“我要加入哪个集群”。更准确的模型是：
+多机部署不是靠节点随便广播“我要加入哪个集群”。更准确的模型是：
 
 ```text
 all nodes receive the same RUSTFS_VOLUMES
@@ -177,7 +175,7 @@ all nodes receive the same RUSTFS_VOLUMES
 
 ## 3 format.json：为什么节点能恢复 pool/set/disk 视图
 
-这里要验证的是：`format.json` 是每块盘的身份文件。真实 JSON 里 `id` 在同一部署内相同，`xl.sets` 记录 set 矩阵，而每块盘的 `xl.this` 不同。
+`format.json` 是每块盘的身份文件。真实 JSON 里 `id` 在同一部署内相同，`xl.sets` 记录 set 矩阵，而每块盘的 `xl.this` 不同。
 
 ```bash
 # cwd: <mount>/rustfs-dist
@@ -188,7 +186,7 @@ done | sort
 ```
 
 ![RustFS format.json 真实 JSON 结构显示顶层 id、xl.this、xl.sets 和 distributionAlgo，并列出 8 个磁盘的 this UUID](https://img.f3dlife.com/blog/2026/06/29/rustfs-format-json-54324099-3fa2-495c-b501-83ad78519651.png)
-Fig. `format.json` 的真实结构：顶层 `id` 标识部署，`xl.sets[0]` 是包含 8 个磁盘 UUID 的 set，`xl.this` 标识当前磁盘。
+Fig. 这里最值得看的是 `xl.this`：每块盘看到的 `sets` 相同，但 `this` 指向自己那一格；这就是磁盘身份和全局布局同时存在于同一个文件里的地方。
 
 抽取其中一块盘的 `format.json`，真实形状是：
 
@@ -246,7 +244,7 @@ save_format_file_all(disks, &fms).await?;
 [`crates/ecstore/src/store_init.rs#L129-L150`](https://github.com/SonglinLife/rustfs/blob/acdf43937162b247619c6a32a5fe079146ca794d/crates/ecstore/src/store_init.rs#L129-L150)
 说明初始化时会按 set/disk 下标给每块盘写入不同的 `erasure.this`，然后保存 `format.json`。
 
-所以 RustFS 的“磁盘自描述”不是说每块盘保存了所有动态状态，而是说每块盘保存了足够稳定的身份和布局信息：
+RustFS 的“磁盘自描述”不是说每块盘保存了所有动态状态，而是说每块盘保存了足够稳定的身份和布局信息：
 
 ```text
 deployment id: 我属于哪个部署
@@ -261,7 +259,7 @@ distributionAlgo: 对象分布算法是什么
 
 `pool.bin` 是 RustFS 持久化 pool 状态的内部 config 对象。
 
-一句话说清楚：**`format.json` 记录磁盘身份和 set 布局，`pool.bin` 记录 pool 列表和 pool 生命周期状态。**
+它和 `format.json` 分工不同：**`format.json` 记录磁盘身份和 set 布局，`pool.bin` 记录 pool 列表和 pool 生命周期状态。**
 
 它不是业务对象索引，不记录 `bucket/object` 落在哪个 pool 或 set，也不替代 `format.json`。`pool.bin` 只回答另一类问题：当前有哪些 pool，这些 pool 是否处在 decommission 这类生命周期流程中。
 
@@ -274,7 +272,7 @@ distributionAlgo: 对象分布算法是什么
 3. `get_pool_idx` 先跨所有 pool 查这个对象是否已经存在；如果对象已经存在，就返回已有对象所在的 pool。这个逻辑能让覆盖写、已有版本和迁移场景尽量保持在原来的 pool。
 4. 如果所有 pool 都查不到这个对象，说明这是一个新对象；这时 RustFS 会计算各 pool 的可用空间，并按可用空间加权选出一个 pool。选中 pool 之后，才在该 pool 内用 object key hash 选择 set。
 
-所以更准确的说法是：bucket 不绑定 pool；对象写入会先找已有对象位置，找不到再按容量选择 pool。
+更准确的说法是：bucket 不绑定 pool；对象写入会先找已有对象位置，找不到再按容量选择 pool。
 
 源码锚点：
 [`crates/ecstore/src/store/object.rs#L624-L656`](https://github.com/SonglinLife/rustfs/blob/acdf43937162b247619c6a32a5fe079146ca794d/crates/ecstore/src/store/object.rs#L624-L656)
@@ -294,7 +292,7 @@ distributionAlgo: 对象分布算法是什么
 
 这只是它的磁盘外壳。对象层看，它是 `.rustfs.sys` bucket 下名为 `pool.bin` 的内部对象，内容是 RustFS 自己编码的 `PoolMeta`。
 
-用 RustFS 自带的 `dump_fileinfo` 解码，可以看到这个样本的 `pool.bin` 是一个 inline 的 `xl.meta` 对象：
+用 RustFS 自带的 `dump_fileinfo` 解码，这个样本里的 `pool.bin` 是一个 inline 的 `xl.meta` 对象：
 
 ```bash
 cargo run -p rustfs-filemeta --example dump_fileinfo -- \
@@ -302,7 +300,7 @@ cargo run -p rustfs-filemeta --example dump_fileinfo -- \
 ```
 
 ![RustFS dump_fileinfo 解码 pool.bin/xl.meta 和用户对象 xl.meta，pool.bin 显示 inline data 标记，用户对象显示逻辑大小 2097152 字节](https://img.f3dlife.com/blog/2026/06/29/rustfs-xlmeta-dump-89ae36b3-f4ac-4199-99f9-14fd94e45d82.png)
-Fig. `pool.bin` 和用户对象都能按 `xl.meta` 解码；`pool.bin` 样本带有 `x-rustfs-internal-inline-data=true`，用户对象 `xl.meta` 记录逻辑大小 2097152 B。
+Fig. 左右两边都叫 `xl.meta`，但语义完全不同：`pool.bin/xl.meta` 里是内部 config 对象，用户对象的 `xl.meta` 才记录 2 MiB 对象的 size、part 和 erasure 信息。
 
 关键行是：
 
@@ -335,7 +333,7 @@ pub const POOL_META_NAME: &str = "pool.bin";
 [`crates/ecstore/src/disk/mod.rs#L26`](https://github.com/SonglinLife/rustfs/blob/acdf43937162b247619c6a32a5fe079146ca794d/crates/ecstore/src/disk/mod.rs#L26)
 定义内部命名空间常量 `.rustfs.sys`。两者连起来说明 `pool.bin` 写在 RustFS 内部对象路径下，而不是外部数据库。
 
-到这里，可以先得到 `pool.bin` 的定位：
+这时 `pool.bin` 的定位已经足够明确：
 
 ```text
 bucket: .rustfs.sys
@@ -386,7 +384,7 @@ struct PersistedPoolStatus {
 [`crates/ecstore/src/pools.rs#L608-L642`](https://github.com/SonglinLife/rustfs/blob/acdf43937162b247619c6a32a5fe079146ca794d/crates/ecstore/src/pools.rs#L608-L642)
 给出 `PersistedPoolDecommissionInfo` 的真实字段。
 
-也就是说，`pool.bin` 的内容可以按下面的结构理解：
+`pool.bin` 的内容可以按下面的结构理解：
 
 ```text
 PoolMeta
@@ -446,7 +444,7 @@ pool.bin
 
 **`format.json` 更像每块盘的身份证；`pool.bin` 更像 RustFS 自己存在对象层里的 pool 生命周期账本。** 它不是对象索引，也不决定某个业务对象进入哪个 set。
 
-到这里，启动阶段的三个概念可以串起来：
+启动阶段的三个概念可以串起来：
 
 ```text
 RUSTFS_VOLUMES  给出预期 endpoint 拓扑
@@ -454,13 +452,13 @@ format.json     让每块盘证明自己的 deployment / set / disk 身份
 pool.bin        让运行时知道 pool 列表和 pool 生命周期状态
 ```
 
-接下来才轮到对象写入。对象定位仍然靠 deployment id、object key hash 和 set 布局。
+对象写入不直接从目录结构里推导位置，它仍然要靠 deployment id、object key hash 和 set 布局。
 
 ## 5 PUT 2 MiB：对象如何进入 set 并落盘
 
 有了 pool/set/disk 视图之后，对象写入还需要解决另一个问题：这个 object key 进入哪个 set？
 
-RustFS 在 `Sets` 里有一个很直接的路径。下面摘出两个相关函数；它们在源码中间隔着 storage info 相关函数，这里只保留 set 选择路径：
+RustFS 在 `Sets` 里有一个很直接的路径。两个相关函数如下；源码中间隔着 storage info 相关函数，这里只保留 set 选择路径：
 
 ```rust
 pub fn get_disks_by_key(&self, key: &str) -> Arc<SetDisks> {
@@ -481,13 +479,9 @@ fn get_hashed_set_index(&self, input: &str) -> usize {
 [`crates/ecstore/src/sets.rs#L287-L340`](https://github.com/SonglinLife/rustfs/blob/acdf43937162b247619c6a32a5fe079146ca794d/crates/ecstore/src/sets.rs#L287-L340)
 说明对象名会先映射到 set index，再拿到该 set 对应的磁盘集合。
 
-这段代码说明两件事。
+set 选择不是扫描目录得出的，而是由 object key 确定性哈希得出的。本实验里的 `distributionAlgo` 是 `SIPMOD+PARITY`，对应 V2/V3 的 sip hash 路径；hash key 用的是 deployment id。
 
-第一，set 选择不是扫描目录得出的，而是由 object key 确定性哈希得出的。
-
-第二，实验里的 `distributionAlgo` 是 `SIPMOD+PARITY`，对应 V2/V3 的 sip hash 路径；hash key 用的是 deployment id。
-
-这个实验里只有一个 set，所以所有对象都会落到 set 0。但在多个 set 的 pool 中，路径会变成：
+本实验只有一个 set，所有对象都会落到 set 0。换成多个 set 的 pool，路径会变成：
 
 ```text
 object name
@@ -499,7 +493,7 @@ object name
 
 这也是为什么“只看目录”会误导：目录是写入后的形态，不是对象定位的规则。对象先通过 hash 进入某个 set，再在 set 内按纠删码布局写出 `xl.meta` 和 `part.1`。
 
-沿着 PUT 路径走到落盘阶段，再检查写入结果。这里要验证的是：8 块盘上都有用户对象 `xl.meta`，并且同一个对象在 8 块盘上各有一个 `part.1` 分片；截图里同时出现的 `format.json` 和 `pool.bin/xl.meta` 是前面两节讲过的系统元数据。
+沿着 PUT 路径走到落盘阶段，再检查写入结果。8 块盘上都有用户对象 `xl.meta`，同一个对象在 8 块盘上各有一个 `part.1` 分片；截图里同时出现的 `format.json` 和 `pool.bin/xl.meta` 是前面两节讲过的系统元数据。
 
 ```bash
 # cwd: <mount>/rustfs-dist
@@ -511,7 +505,7 @@ find node*/disk*/dist-bucket/dist-large-2m.bin -name part.1 \
 ```
 
 ![RustFS 4 节点 8 磁盘实验里，每块盘都有 format.json、pool.bin/xl.meta、对象 xl.meta，且每块盘的 part.1 分片大小都是 524352 字节](https://img.f3dlife.com/blog/2026/06/29/rustfs-layout-stat-2a64aa30-6a35-42f4-bfea-4946d3c95274.png)
-Fig. PUT 2 MiB 对象后的磁盘文件证据：系统元数据、对象元数据和 `part.1` 分片都分布在 8 块盘上。
+Fig. 这一屏把三类文件放到一起看：`format.json` 是每盘身份，`pool.bin/xl.meta` 是 pool 生命周期对象，用户对象的 `xl.meta` 和 `part.1` 才是这次 PUT 的落盘结果。
 
 ```text
 node1/disk1/.rustfs.sys/format.json 498 bytes
@@ -550,10 +544,10 @@ node4/disk2/dist-bucket/dist-large-2m.bin/<data-dir>/part.1 524352 bytes
 
 ## 6 纠删码边界：4+4、6+2、8+4 到底差在哪
 
-实验里的 set 宽度是 8，对象被写成 8 个 `part.1`，每个 524352 B。逻辑对象是 2 MiB，8 个分片合计约 4 MiB，所以它符合 4+4 的空间直觉。
+实验里的 set 宽度是 8，对象被写成 8 个 `part.1`，每个 524352 B。逻辑对象是 2 MiB，8 个分片合计约 4 MiB，符合 4+4 的空间直觉。
 
-![RustFS 4+4 erasure set 中 4 个数据分片和 4 个校验分片跨 4 台机器 8 块盘放置，一台机器故障会同时丢失两块盘的 shard](https://img.f3dlife.com/blog/2026/06/29/rustfs-4plus4-failure-domain-f88eed71-9cca-466b-ade8-ffd271e237bb.svg)
-Fig. 4+4 set 的故障域不是“机器数量”本身，而是 set 内丢失 shard 的数量；这个实验里每台机器在同一个 set 中有两块盘。
+![RustFS 4 plus 4 erasure set shows node1 failure losing two shards in the same set while other nodes keep data and parity shards](https://img.f3dlife.com/blog/2026/06/30/rustfs-4plus4-failure-domain-5f88fb29-4942-4395-bd66-5dc50f27ef81.svg)
+Fig. 图里的红色不是“坏了一台机器”这么简单，而是同一个 set 里少了 2 个 shard；换成 6+2 时，这个差别会直接影响能不能恢复。
 
 纠删码利用率可以先用一个简单公式理解：
 
@@ -581,7 +575,7 @@ usable = data_shards / (data_shards + parity_shards)
 - 4+2 的 set 更小，读写扇出更少，恢复影响面也更小；
 - 8+4 的 set 更大，最多容忍 4 个 shard 缺失，但每个对象牵涉更多盘，慢盘和恢复的影响面更大。
 
-所以选纠删码配置时，先问两个问题：这个 set 横跨多少台机器？一次机器级故障会让这个 set 丢几个 shard？
+选纠删码配置时，先问两个问题：这个 set 横跨多少台机器？一次机器级故障会让这个 set 丢几个 shard？
 
 ## 7 pool、set 与扩容/坏槽位
 

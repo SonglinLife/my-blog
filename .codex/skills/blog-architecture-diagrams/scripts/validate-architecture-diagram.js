@@ -1,10 +1,16 @@
 #!/usr/bin/env node
 import fs from "node:fs";
 
-const files = process.argv.slice(2);
+const args = parseArgs(process.argv.slice(2));
+const files = args.files;
+
+if (!["text", "json"].includes(args.format)) {
+  console.error(`Unsupported format "${args.format}". Use text or json.`);
+  process.exit(1);
+}
 
 if (!files.length) {
-  console.error("Usage: node validate-architecture-diagram.js <diagram.json> [...]");
+  console.error("Usage: node validate-architecture-diagram.js [--format text|json] <diagram.json> [...]");
   process.exit(1);
 }
 
@@ -15,6 +21,19 @@ const DEFAULTS = {
   maxPathRatio: 2.2,
   maxBends: 3,
 };
+
+function parseArgs(argv) {
+  const parsed = { files: [], format: "text" };
+  for (let i = 0; i < argv.length; i += 1) {
+    const arg = argv[i];
+    if (arg === "--format") {
+      parsed.format = argv[++i] ?? "text";
+    } else {
+      parsed.files.push(arg);
+    }
+  }
+  return parsed;
+}
 
 function center(box) {
   return { x: box.x + box.w / 2, y: box.y + box.h / 2 };
@@ -162,6 +181,12 @@ function pathLength(points) {
   return total;
 }
 
+function canvasDensity(spec) {
+  const canvasArea = (spec.width ?? 1600) * (spec.height ?? 900);
+  const nodeArea = (spec.nodes ?? []).reduce((sum, node) => sum + node.w * node.h, 0);
+  return canvasArea > 0 ? nodeArea / canvasArea : 0;
+}
+
 function labelBox(arrow, geometry) {
   if (!arrow.label) return null;
   const lines = textLines(arrow.label);
@@ -216,9 +241,10 @@ function validateFile(file) {
   const nodes = new Map((spec.nodes ?? []).map((node) => [node.id, node]));
   const zoneLabels = zoneLabelBoxes(spec);
   const issues = [];
+  const arrowMetrics = [];
 
-  function issue(level, message) {
-    issues.push({ level, message });
+  function issue(level, message, suggestion) {
+    issues.push({ level, message, suggestion });
   }
 
   for (const [index, arrow] of (spec.arrows ?? []).entries()) {
@@ -232,17 +258,24 @@ function validateFile(file) {
     }
 
     if ((arrow.width ?? 3) > DEFAULTS.maxArrowWidth) {
-      issue("error", `arrow ${index + 1} (${name}): width ${arrow.width} is too heavy; keep arrows at ${DEFAULTS.maxArrowWidth}px or less`);
+      issue("error", `arrow ${index + 1} (${name}): width ${arrow.width} is too heavy; keep arrows at ${DEFAULTS.maxArrowWidth}px or less`, "Use a style-level width of 3px for primary arrows and 2-3px for secondary arrows.");
     }
 
     if ((arrow.points ?? []).length > DEFAULTS.maxBends) {
-      issue("warn", `arrow ${index + 1} (${name}): has ${(arrow.points ?? []).length} bend points; prefer ${DEFAULTS.maxBends} or fewer`);
+      issue("warn", `arrow ${index + 1} (${name}): has ${(arrow.points ?? []).length} bend points; prefer ${DEFAULTS.maxBends} or fewer`, "Remove a bend or move the nodes so the arrow can use a cleaner lane.");
     }
 
     const direct = Math.hypot(geometry.points.at(-1).x - geometry.points[0].x, geometry.points.at(-1).y - geometry.points[0].y);
     const ratio = direct > 0 ? pathLength(geometry.points) / direct : 1;
+    arrowMetrics.push({
+      arrow: index + 1,
+      id: arrow.id ?? null,
+      pathLength: Number(pathLength(geometry.points).toFixed(1)),
+      directLength: Number(direct.toFixed(1)),
+      pathRatio: Number(ratio.toFixed(2)),
+    });
     if (ratio > DEFAULTS.maxPathRatio) {
-      issue("warn", `arrow ${index + 1} (${name}): path length is ${ratio.toFixed(1)}x the direct distance; reserve a cleaner lane`);
+      issue("warn", `arrow ${index + 1} (${name}): path length is ${ratio.toFixed(1)}x the direct distance; reserve a cleaner lane`, "Use a shorter lane or split the relationship into a note instead of a long routed arrow.");
     }
 
     for (let segmentIndex = 1; segmentIndex < geometry.points.length; segmentIndex += 1) {
@@ -250,20 +283,29 @@ function validateFile(file) {
       const end = geometry.points[segmentIndex];
       const length = Math.hypot(end.x - start.x, end.y - start.y);
       if (length < DEFAULTS.minSegmentLength) {
-        issue("error", `arrow ${index + 1} (${name}): segment ${segmentIndex} is only ${length.toFixed(0)}px; avoid tiny arrowhead stubs`);
+        issue("error", `arrow ${index + 1} (${name}): segment ${segmentIndex} is only ${length.toFixed(0)}px; avoid tiny arrowhead stubs`, "Move the bend point farther from the target or remove the bend.");
       }
 
       for (const node of nodes.values()) {
         if (node.id === arrow.from || node.id === arrow.to) continue;
-        const padded = expand(node, DEFAULTS.nodePadding);
+        const padded = expand(node, Math.max(DEFAULTS.nodePadding, (arrow.width ?? 3) / 2 + DEFAULTS.nodePadding));
         if (segmentIntersectsRect(start, end, padded)) {
-          issue("error", `arrow ${index + 1} (${name}): segment ${segmentIndex} crosses node "${node.id}"`);
+          issue("error", `arrow ${index + 1} (${name}): segment ${segmentIndex} crosses node "${node.id}"`, "Route the arrow through whitespace or move the node to create a lane.");
         }
       }
 
       for (const label of zoneLabels) {
-        if (segmentIntersectsRect(start, end, expand(label, DEFAULTS.nodePadding))) {
-          issue("error", `arrow ${index + 1} (${name}): segment ${segmentIndex} crosses zone label "${label.id}"`);
+        if (segmentIntersectsRect(start, end, expand(label, Math.max(DEFAULTS.nodePadding, (arrow.width ?? 3) / 2 + DEFAULTS.nodePadding)))) {
+          issue("error", `arrow ${index + 1} (${name}): segment ${segmentIndex} crosses zone label "${label.id}"`, "Move the arrow lane away from the zone title area.");
+        }
+      }
+    }
+
+    for (let a = 1; a < geometry.points.length; a += 1) {
+      for (let b = a + 2; b < geometry.points.length; b += 1) {
+        if (a === 1 && b === geometry.points.length - 1) continue;
+        if (segmentsIntersect(geometry.points[a - 1], geometry.points[a], geometry.points[b - 1], geometry.points[b])) {
+          issue("error", `arrow ${index + 1} (${name}): path self-intersects`, "Remove the loop or split the relationship into separate arrows.");
         }
       }
     }
@@ -272,12 +314,12 @@ function validateFile(file) {
     if (lbox) {
       for (const node of nodes.values()) {
         if (rectsOverlap(lbox, expand(node, DEFAULTS.nodePadding))) {
-          issue("error", `arrow ${index + 1} (${name}): label overlaps node "${node.id}"`);
+          issue("error", `arrow ${index + 1} (${name}): label overlaps node "${node.id}"`, "Move labelX/labelY into whitespace or shorten the label.");
         }
       }
       for (const label of zoneLabels) {
         if (rectsOverlap(lbox, expand(label, DEFAULTS.nodePadding))) {
-          issue("error", `arrow ${index + 1} (${name}): label overlaps zone label "${label.id}"`);
+          issue("error", `arrow ${index + 1} (${name}): label overlaps zone label "${label.id}"`, "Move the label below the zone title or shorten it.");
         }
       }
     }
@@ -286,16 +328,16 @@ function validateFile(file) {
     if (sbox) {
       for (const node of nodes.values()) {
         if (rectsOverlap(sbox, expand(node, DEFAULTS.nodePadding))) {
-          issue("error", `arrow ${index + 1} (${name}): step circle overlaps node "${node.id}"`);
+          issue("error", `arrow ${index + 1} (${name}): step circle overlaps node "${node.id}"`, "Move stepAt outside node bounds or add stepOffset.");
         }
       }
       for (const label of zoneLabels) {
         if (rectsOverlap(sbox, expand(label, DEFAULTS.nodePadding))) {
-          issue("error", `arrow ${index + 1} (${name}): step circle overlaps zone label "${label.id}"`);
+          issue("error", `arrow ${index + 1} (${name}): step circle overlaps zone label "${label.id}"`, "Move the step marker away from the title area.");
         }
       }
       if (lbox && rectsOverlap(sbox, lbox)) {
-        issue("error", `arrow ${index + 1} (${name}): step circle overlaps its label`);
+        issue("error", `arrow ${index + 1} (${name}): step circle overlaps its label`, "Move the label or stepAt so the marker sits beside, not on, the label.");
       }
     }
   }
@@ -317,28 +359,55 @@ function validateFile(file) {
       for (let ai = 1; ai < a.points.length; ai += 1) {
         for (let bi = 1; bi < b.points.length; bi += 1) {
           if (segmentsIntersect(a.points[ai - 1], a.points[ai], b.points[bi - 1], b.points[bi])) {
-            issue("error", `arrow ${i + 1} crosses arrow ${j + 1}; reserve separate arrow lanes`);
+            issue("error", `arrow ${i + 1} crosses arrow ${j + 1}; reserve separate arrow lanes`, "Move one path into a separate horizontal or vertical whitespace lane.");
           }
         }
       }
     }
   }
 
+  const metrics = {
+    totalNodes: spec.nodes?.length ?? 0,
+    totalArrows: spec.arrows?.length ?? 0,
+    density: Number(canvasDensity(spec).toFixed(3)),
+    totalPathLength: Number(arrowMetrics.reduce((sum, item) => sum + item.pathLength, 0).toFixed(1)),
+    avgPathRatio: arrowMetrics.length
+      ? Number((arrowMetrics.reduce((sum, item) => sum + item.pathRatio, 0) / arrowMetrics.length).toFixed(2))
+      : 0,
+    arrows: arrowMetrics,
+  };
+
+  const result = {
+    file,
+    passed: !issues.some((item) => item.level === "error"),
+    errors: issues.filter((item) => item.level === "error").length,
+    warnings: issues.filter((item) => item.level === "warn").length,
+    metrics,
+    issues,
+  };
+
+  if (args.format === "json") {
+    return result;
+  }
+
   if (issues.length) {
     console.error(`\n${file}`);
     for (const item of issues) {
       console.error(`  [${item.level}] ${item.message}`);
+      if (item.suggestion) console.error(`        suggestion: ${item.suggestion}`);
     }
   } else {
     console.log(`${file}: diagram geometry passed`);
   }
 
-  return issues.some((item) => item.level === "error");
+  return result;
 }
 
-let failed = false;
-for (const file of files) {
-  failed = validateFile(file) || failed;
+const results = files.map(validateFile);
+const failed = results.some((result) => !result.passed);
+
+if (args.format === "json") {
+  console.log(JSON.stringify({ passed: !failed, files: results }, null, 2));
 }
 
 process.exit(failed ? 1 : 0);
