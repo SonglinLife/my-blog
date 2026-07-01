@@ -1,0 +1,171 @@
+{
+  "title": "RustFS startup topology reading path",
+  "width": 1800,
+  "height": 1000,
+  "background": "#fbfbf7",
+  "accent": "#2563eb",
+  "zones": [
+    {
+      "id": "startup",
+      "label": "Startup control path",
+      "x": 80,
+      "y": 90,
+      "w": 520,
+      "h": 770,
+      "tone": "blue"
+    },
+    {
+      "id": "runtime",
+      "label": "Process-global state",
+      "x": 680,
+      "y": 90,
+      "w": 430,
+      "h": 770,
+      "tone": "green"
+    },
+    {
+      "id": "topology",
+      "label": "Observed Docker topology",
+      "x": 1190,
+      "y": 90,
+      "w": 530,
+      "h": 770,
+      "tone": "yellow"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "async-main",
+      "label": "1. async_main()\nparse CommandResult",
+      "x": 180,
+      "y": 155,
+      "w": 320,
+      "h": 78,
+      "tone": "blue"
+    },
+    {
+      "id": "run",
+      "label": "2. run(config)\nstartup orchestration",
+      "x": 180,
+      "y": 275,
+      "w": 320,
+      "h": 78,
+      "tone": "blue"
+    },
+    {
+      "id": "listen",
+      "label": "3. init_startup_listen_context()\nreadiness / address / credentials",
+      "x": 180,
+      "y": 395,
+      "w": 320,
+      "h": 92,
+      "tone": "blue"
+    },
+    {
+      "id": "foundation",
+      "label": "4. init_startup_storage_foundation()\nvolumes -> endpoint pools",
+      "x": 180,
+      "y": 535,
+      "w": 320,
+      "h": 92,
+      "tone": "blue"
+    },
+    {
+      "id": "runtime-init",
+      "label": "5. HTTP + ECStore + services\nreadiness gate then FullReady",
+      "x": 180,
+      "y": 675,
+      "w": 320,
+      "h": 92,
+      "tone": "blue"
+    },
+    {
+      "id": "readiness",
+      "label": "GlobalReadiness\nBooting -> StorageReady\n-> IamReady -> FullReady",
+      "x": 745,
+      "y": 180,
+      "w": 300,
+      "h": 120,
+      "tone": "green"
+    },
+    {
+      "id": "creds",
+      "label": "GLOBAL_ACTIVE_CRED\nOnceLock<Credentials>\nroot/action credentials",
+      "x": 745,
+      "y": 375,
+      "w": 300,
+      "h": 120,
+      "tone": "green"
+    },
+    {
+      "id": "endpoints",
+      "label": "GLOBAL_ENDPOINTS\nEndpointServerPools\nsame topology per process",
+      "x": 745,
+      "y": 570,
+      "w": 300,
+      "h": 120,
+      "tone": "green"
+    },
+    {
+      "id": "volumes",
+      "label": "A. RUSTFS_VOLUMES\nnode{1...4}:9000/data{1...2}\nnode{5...8}:9000/data{1...2}",
+      "x": 1265,
+      "y": 160,
+      "w": 380,
+      "h": 130,
+      "tone": "yellow"
+    },
+    {
+      "id": "pools",
+      "label": "B. DisksLayout\n2 pools\n8 endpoints per pool",
+      "x": 1265,
+      "y": 365,
+      "w": 380,
+      "h": 115,
+      "tone": "yellow"
+    },
+    {
+      "id": "sets",
+      "label": "C. EndpointServerPools\n1 set x 8 drives per pool\nSetupType::DistErasure",
+      "x": 1265,
+      "y": 555,
+      "w": 380,
+      "h": 130,
+      "tone": "yellow"
+    },
+    {
+      "id": "ec",
+      "label": "D. STANDARD default\n8-drive set -> EC 4+4\nunless storage class overrides parity",
+      "x": 1265,
+      "y": 735,
+      "w": 380,
+      "h": 105,
+      "tone": "yellow"
+    }
+  ],
+  "arrows": [],
+  "notes": [
+    {
+      "text": "Each RustFS process stores the same 2-pool topology, but marks only its own two endpoints as local after DNS/local-host detection.",
+      "x": 120,
+      "y": 900,
+      "w": 1180
+    }
+  ],
+  "legend": {
+    "items": [
+      {
+        "tone": "blue",
+        "label": "startup function"
+      },
+      {
+        "tone": "green",
+        "label": "process-global state"
+      },
+      {
+        "tone": "yellow",
+        "label": "observed topology"
+      }
+    ]
+  }
+}

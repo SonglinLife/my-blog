@@ -1,0 +1,89 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1000" viewBox="0 0 1800 1000" role="img" aria-label="RustFS startup topology reading path">
+  <defs>
+    
+    <style>
+      svg { background: #fbfbf7; }
+      text { font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    </style>
+  </defs>
+  <rect width="100%" height="100%" fill="#fbfbf7"/>
+  
+  <g class="zone">
+    <rect x="80" y="90" width="520" height="770" rx="10" fill="#dbeafe" stroke="#2563eb" stroke-width="2" opacity="0.45"/>
+    <text x="104" y="128" text-anchor="start" font-size="25" font-weight="700" fill="#0f172a"><tspan x="104" dy="0">Startup control path</tspan></text>
+  </g>
+<g class="zone">
+    <rect x="680" y="90" width="430" height="770" rx="10" fill="#dcfce7" stroke="#16a34a" stroke-width="2" opacity="0.45"/>
+    <text x="704" y="128" text-anchor="start" font-size="25" font-weight="700" fill="#0f172a"><tspan x="704" dy="0">Process-global state</tspan></text>
+  </g>
+<g class="zone">
+    <rect x="1190" y="90" width="530" height="770" rx="10" fill="#fef3c7" stroke="#d97706" stroke-width="2" opacity="0.45"/>
+    <text x="1214" y="128" text-anchor="start" font-size="25" font-weight="700" fill="#0f172a"><tspan x="1214" dy="0">Observed Docker topology</tspan></text>
+  </g>
+<g class="node">
+    <rect x="180" y="155" width="320" height="78" rx="8" fill="#dbeafe" stroke="#2563eb" stroke-width="3"/>
+    <text x="340" y="178.5" text-anchor="middle" font-size="25" font-weight="650" fill="#0f172a"><tspan x="340" dy="0">1. async_main()</tspan><tspan x="340" dy="31">parse CommandResult</tspan></text>
+  </g>
+<g class="node">
+    <rect x="180" y="275" width="320" height="78" rx="8" fill="#dbeafe" stroke="#2563eb" stroke-width="3"/>
+    <text x="340" y="298.5" text-anchor="middle" font-size="25" font-weight="650" fill="#0f172a"><tspan x="340" dy="0">2. run(config)</tspan><tspan x="340" dy="31">startup orchestration</tspan></text>
+  </g>
+<g class="node">
+    <rect x="180" y="395" width="320" height="92" rx="8" fill="#dbeafe" stroke="#2563eb" stroke-width="3"/>
+    <text x="340" y="425.5" text-anchor="middle" font-size="25" font-weight="650" fill="#0f172a"><tspan x="340" dy="0">3. init_startup_listen_context()</tspan><tspan x="340" dy="31">readiness / address / credentials</tspan></text>
+  </g>
+<g class="node">
+    <rect x="180" y="535" width="320" height="92" rx="8" fill="#dbeafe" stroke="#2563eb" stroke-width="3"/>
+    <text x="340" y="565.5" text-anchor="middle" font-size="25" font-weight="650" fill="#0f172a"><tspan x="340" dy="0">4. init_startup_storage_foundation()</tspan><tspan x="340" dy="31">volumes -&gt; endpoint pools</tspan></text>
+  </g>
+<g class="node">
+    <rect x="180" y="675" width="320" height="92" rx="8" fill="#dbeafe" stroke="#2563eb" stroke-width="3"/>
+    <text x="340" y="705.5" text-anchor="middle" font-size="25" font-weight="650" fill="#0f172a"><tspan x="340" dy="0">5. HTTP + ECStore + services</tspan><tspan x="340" dy="31">readiness gate then FullReady</tspan></text>
+  </g>
+<g class="node">
+    <rect x="745" y="180" width="300" height="120" rx="8" fill="#dcfce7" stroke="#16a34a" stroke-width="3"/>
+    <text x="895" y="209" text-anchor="middle" font-size="25" font-weight="650" fill="#0f172a"><tspan x="895" dy="0">GlobalReadiness</tspan><tspan x="895" dy="31">Booting -&gt; StorageReady</tspan><tspan x="895" dy="31">-&gt; IamReady -&gt; FullReady</tspan></text>
+  </g>
+<g class="node">
+    <rect x="745" y="375" width="300" height="120" rx="8" fill="#dcfce7" stroke="#16a34a" stroke-width="3"/>
+    <text x="895" y="404" text-anchor="middle" font-size="25" font-weight="650" fill="#0f172a"><tspan x="895" dy="0">GLOBAL_ACTIVE_CRED</tspan><tspan x="895" dy="31">OnceLock&lt;Credentials&gt;</tspan><tspan x="895" dy="31">root/action credentials</tspan></text>
+  </g>
+<g class="node">
+    <rect x="745" y="570" width="300" height="120" rx="8" fill="#dcfce7" stroke="#16a34a" stroke-width="3"/>
+    <text x="895" y="599" text-anchor="middle" font-size="25" font-weight="650" fill="#0f172a"><tspan x="895" dy="0">GLOBAL_ENDPOINTS</tspan><tspan x="895" dy="31">EndpointServerPools</tspan><tspan x="895" dy="31">same topology per process</tspan></text>
+  </g>
+<g class="node">
+    <rect x="1265" y="160" width="380" height="130" rx="8" fill="#fef3c7" stroke="#d97706" stroke-width="3"/>
+    <text x="1455" y="194" text-anchor="middle" font-size="25" font-weight="650" fill="#0f172a"><tspan x="1455" dy="0">A. RUSTFS_VOLUMES</tspan><tspan x="1455" dy="31">node{1...4}:9000/data{1...2}</tspan><tspan x="1455" dy="31">node{5...8}:9000/data{1...2}</tspan></text>
+  </g>
+<g class="node">
+    <rect x="1265" y="365" width="380" height="115" rx="8" fill="#fef3c7" stroke="#d97706" stroke-width="3"/>
+    <text x="1455" y="391.5" text-anchor="middle" font-size="25" font-weight="650" fill="#0f172a"><tspan x="1455" dy="0">B. DisksLayout</tspan><tspan x="1455" dy="31">2 pools</tspan><tspan x="1455" dy="31">8 endpoints per pool</tspan></text>
+  </g>
+<g class="node">
+    <rect x="1265" y="555" width="380" height="130" rx="8" fill="#fef3c7" stroke="#d97706" stroke-width="3"/>
+    <text x="1455" y="589" text-anchor="middle" font-size="25" font-weight="650" fill="#0f172a"><tspan x="1455" dy="0">C. EndpointServerPools</tspan><tspan x="1455" dy="31">1 set x 8 drives per pool</tspan><tspan x="1455" dy="31">SetupType::DistErasure</tspan></text>
+  </g>
+<g class="node">
+    <rect x="1265" y="735" width="380" height="105" rx="8" fill="#fef3c7" stroke="#d97706" stroke-width="3"/>
+    <text x="1455" y="756.5" text-anchor="middle" font-size="25" font-weight="650" fill="#0f172a"><tspan x="1455" dy="0">D. STANDARD default</tspan><tspan x="1455" dy="31">8-drive set -&gt; EC 4+4</tspan><tspan x="1455" dy="31">unless storage class overrides parity</tspan></text>
+  </g>
+<g class="note">
+    <rect x="120" y="900" width="1180" height="106" rx="8" fill="#f8fafc" stroke="#cbd5e1" stroke-width="2"/>
+    <text x="138" y="934" font-size="20" font-weight="500" fill="#334155">
+      <tspan x="138" dy="0">Each RustFS process stores the same 2-pool topology, but marks</tspan><tspan x="138" dy="26">only its own two endpoints as local after DNS/local-host</tspan><tspan x="138" dy="26">detection.</tspan>
+    </text>
+  </g>
+<g class="legend">
+    <g>
+        <rect x="80" y="912" width="28" height="18" rx="4" fill="#dbeafe" stroke="#2563eb" stroke-width="2"/>
+        <text x="120" y="928" font-size="18" font-weight="600" fill="#334155">startup function</text>
+      </g><g>
+        <rect x="342" y="912" width="28" height="18" rx="4" fill="#dcfce7" stroke="#16a34a" stroke-width="2"/>
+        <text x="382" y="928" font-size="18" font-weight="600" fill="#334155">process-global state</text>
+      </g><g>
+        <rect x="656" y="912" width="28" height="18" rx="4" fill="#fef3c7" stroke="#d97706" stroke-width="2"/>
+        <text x="696" y="928" font-size="18" font-weight="600" fill="#334155">observed topology</text>
+      </g>
+  </g>
+</svg>

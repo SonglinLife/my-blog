@@ -1,3 +1,18 @@
+import { readFile } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
+
+const LOCAL_FONT_BY_WEIGHT: Record<number, string> = {
+  400: "../../public/fonts/atkinson-regular.woff",
+  700: "../../public/fonts/atkinson-bold.woff",
+};
+
+async function loadLocalFont(weight: number): Promise<ArrayBuffer> {
+  const localFontPath = LOCAL_FONT_BY_WEIGHT[weight] ?? LOCAL_FONT_BY_WEIGHT[400];
+  const url = new URL(localFontPath, import.meta.url);
+  const buffer = await readFile(fileURLToPath(url));
+  return buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
+}
+
 async function loadGoogleFont(
   font: string,
   text: string,
@@ -51,7 +66,12 @@ async function loadGoogleFonts(
 
   const fonts = await Promise.all(
     fontsConfig.map(async ({ name, font, weight, style }) => {
-      const data = await loadGoogleFont(font, text, weight);
+      let data: ArrayBuffer;
+      try {
+        data = await loadGoogleFont(font, text, weight);
+      } catch {
+        data = await loadLocalFont(weight);
+      }
       return { name, data, weight, style };
     })
   );
