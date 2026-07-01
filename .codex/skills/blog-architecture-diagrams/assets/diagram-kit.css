@@ -1,0 +1,176 @@
+@import "tailwindcss";
+
+@theme {
+  --color-diagram-bg: #fbfbf7;
+  --color-diagram-ink: #0f172a;
+  --color-diagram-muted: #334155;
+  --color-diagram-line: #cbd5e1;
+  --color-diagram-blue-bg: #dbeafe;
+  --color-diagram-blue: #2563eb;
+  --color-diagram-green-bg: #dcfce7;
+  --color-diagram-green: #16a34a;
+  --color-diagram-yellow-bg: #fef3c7;
+  --color-diagram-yellow: #d97706;
+  --color-diagram-orange-bg: #ffedd5;
+  --color-diagram-orange: #ea580c;
+  --color-diagram-gray-bg: #f8fafc;
+  --color-diagram-gray: #64748b;
+}
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    @apply m-0 grid min-h-screen place-items-center bg-slate-200 text-diagram-ink;
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+}
+
+@layer components {
+  .dg-canvas {
+    @apply relative grid overflow-hidden bg-diagram-bg;
+  }
+
+  .dg-zone {
+    @apply relative min-w-0 rounded-[10px] border-2 border-diagram-line bg-white/35 px-7 pb-7 pt-[68px];
+  }
+
+  .dg-zone::before {
+    content: attr(data-title);
+    @apply absolute left-6 top-5 text-[25px] font-bold text-diagram-ink;
+  }
+
+  .dg-zone-blue {
+    @apply border-blue-400/70 bg-blue-100/45;
+  }
+
+  .dg-zone-green {
+    @apply border-green-500/60 bg-green-100/45;
+  }
+
+  .dg-zone-yellow {
+    @apply border-yellow-600/55 bg-yellow-100/50;
+  }
+
+  .dg-stack {
+    @apply grid content-start gap-[30px];
+  }
+
+  .dg-node {
+    @apply grid min-h-[92px] w-full min-w-0 max-w-full place-items-center rounded-lg border-[3px] border-diagram-line px-5 py-[18px] text-center text-[23px] font-bold leading-[1.16] text-diagram-ink;
+    word-break: normal;
+    overflow-wrap: normal;
+  }
+
+  .dg-node small {
+    @apply mt-2 block text-[18px] font-semibold leading-[1.18] text-diagram-muted;
+  }
+
+  .dg-node-blue {
+    @apply border-diagram-blue bg-diagram-blue-bg;
+  }
+
+  .dg-node-green {
+    @apply border-diagram-green bg-diagram-green-bg;
+  }
+
+  .dg-node-yellow {
+    @apply border-diagram-yellow bg-diagram-yellow-bg;
+  }
+
+  .dg-node-orange {
+    @apply border-diagram-orange bg-diagram-orange-bg;
+  }
+
+  .dg-node-gray {
+    @apply border-slate-400 bg-white;
+  }
+
+  .dg-node-compact {
+    @apply min-h-[78px] px-2.5 py-3 text-[18px];
+  }
+
+  .dg-node-compact small {
+    @apply mt-1 text-[15px] leading-[1.2];
+  }
+
+  .dg-node-source {
+    @apply text-[19px];
+  }
+
+  .dg-node-source small {
+    @apply text-[17px];
+  }
+
+  .dg-node-wide {
+    @apply col-span-full;
+  }
+
+  .dg-pool {
+    @apply relative min-w-0 rounded-[10px] border-2 border-diagram-line px-6 pb-[26px] pt-28;
+  }
+
+  .dg-pool::before {
+    content: attr(data-title);
+    white-space: pre-line;
+    @apply absolute left-[22px] top-[22px] text-[20px] font-bold leading-[1.25] text-diagram-ink;
+  }
+
+  .dg-pool-blue {
+    @apply border-blue-400/70 bg-blue-100/35;
+  }
+
+  .dg-pool-yellow {
+    @apply border-yellow-600/55 bg-yellow-100/45;
+  }
+
+  .dg-step {
+    @apply absolute z-[4] grid size-[38px] place-items-center rounded-full border-4 border-white bg-diagram-blue text-[21px] font-extrabold text-white;
+  }
+
+  .dg-step-muted {
+    @apply bg-diagram-gray;
+  }
+
+  .dg-label {
+    @apply absolute z-[3] whitespace-nowrap rounded-[5px] bg-diagram-bg/95 px-2 py-1 text-[19px] font-bold leading-none text-slate-800;
+  }
+
+  .dg-note {
+    @apply absolute rounded-lg border-2 border-diagram-line bg-diagram-gray-bg px-5 py-4 text-[20px] leading-[1.3] text-diagram-muted;
+  }
+
+  .dg-legend {
+    @apply absolute flex items-center gap-[42px] text-[18px] font-bold text-diagram-muted;
+  }
+
+  .dg-legend-item {
+    @apply inline-flex items-center gap-2.5;
+  }
+
+  .dg-swatch {
+    @apply h-[18px] w-7 rounded border-2;
+  }
+
+  .dg-swatch-blue {
+    @apply border-diagram-blue bg-diagram-blue-bg;
+  }
+
+  .dg-swatch-green {
+    @apply border-diagram-green bg-diagram-green-bg;
+  }
+
+  .dg-swatch-yellow {
+    @apply border-diagram-yellow bg-diagram-yellow-bg;
+  }
+
+  .dg-swatch-orange {
+    @apply border-diagram-orange bg-diagram-orange-bg;
+  }
+
+  .dg-arrows {
+    @apply pointer-events-none absolute inset-0 z-[2];
+  }
+}

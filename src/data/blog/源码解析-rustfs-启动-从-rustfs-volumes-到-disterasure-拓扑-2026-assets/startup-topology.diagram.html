@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>RustFS startup control path and DistErasure topology</title>
+    <link rel="stylesheet" href="../../../../.codex/skills/blog-architecture-diagrams/assets/diagram-kit.css" data-diagram-kit />
+    <style data-diagram-css>
+      .rustfs-startup {
+        width: 1800px;
+        height: 1040px;
+        grid-template-columns: 430px 420px 1fr;
+        gap: 46px;
+        padding: 82px 64px 92px;
+      }
+
+      .startup-flow {
+        grid-template-rows: repeat(5, 112px);
+        gap: 42px;
+      }
+
+      .runtime-flow {
+        grid-template-rows: repeat(4, 124px);
+        gap: 54px;
+      }
+
+      .topology-flow {
+        display: grid;
+        grid-template-rows: 108px 1fr 112px;
+        gap: 30px;
+      }
+
+      .pool-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 28px;
+      }
+
+      .disk-matrix {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 18px 22px;
+      }
+
+      .volumes {
+        font-size: 22px;
+      }
+
+      .volumes small {
+        font-size: 18px;
+      }
+
+      .result {
+        width: 380px;
+        justify-self: center;
+        align-self: end;
+      }
+    </style>
+  </head>
+  <body>
+    <main
+      class="dg-canvas rustfs-startup"
+      data-diagram-root
+      data-width="1800"
+      data-height="1040"
+      aria-label="RustFS startup control path turns RUSTFS_VOLUMES into DisksLayout, EndpointServerPools, two pools, sixteen endpoints, DistErasure, and EC 4+4"
+    >
+      <section class="dg-zone dg-zone-blue dg-stack startup-flow" data-title="Startup control path">
+        <div class="dg-node dg-node-blue">async_main()<small>parse CommandResult</small></div>
+        <div class="dg-node dg-node-blue">run(config)<small>startup orchestration</small></div>
+        <div class="dg-node dg-node-blue dg-node-source">init_startup_listen_context()<small>address / credentials / readiness</small></div>
+        <div class="dg-node dg-node-blue dg-node-source">init_startup_storage_foundation()<small>volumes -> endpoint pools</small></div>
+        <div class="dg-node dg-node-blue">HTTP + ECStore + services<small>FullReady after storage/IAM</small></div>
+      </section>
+
+      <section class="dg-zone dg-zone-green dg-stack runtime-flow" data-title="Runtime topology state">
+        <div class="dg-node dg-node-green">ServerOpts.volumes<small>RUSTFS_VOLUMES env / split by spaces</small></div>
+        <div class="dg-node dg-node-green">DisksLayout<small>2 volume groups / 8 endpoints each</small></div>
+        <div class="dg-node dg-node-green">EndpointServerPools<small>2 pools / same view in every process</small></div>
+        <div class="dg-node dg-node-green">local endpoint mark<small>2 local disks per process / others remote</small></div>
+      </section>
+
+      <section class="dg-zone dg-zone-yellow topology-flow" data-title="DistErasure topology in this environment">
+        <div class="dg-node dg-node-yellow dg-node-wide volumes">
+          RUSTFS_VOLUMES
+          <small>http://node{1...4}:9000/data{1...2}<br />http://node{5...8}:9000/data{1...2}</small>
+        </div>
+
+        <div class="pool-grid">
+          <div class="dg-pool dg-pool-blue" data-title="pool 0&#10;node1..node4&#10;/data1 /data2">
+            <div class="disk-matrix">
+              <div class="dg-node dg-node-blue dg-node-compact">node1<small>/data1<br />/data2</small></div>
+              <div class="dg-node dg-node-blue dg-node-compact">node2<small>/data1<br />/data2</small></div>
+              <div class="dg-node dg-node-blue dg-node-compact">node3<small>/data1<br />/data2</small></div>
+              <div class="dg-node dg-node-blue dg-node-compact">node4<small>/data1<br />/data2</small></div>
+              <div class="dg-node dg-node-gray dg-node-wide">set 0<small>8 drives</small></div>
+            </div>
+          </div>
+
+          <div class="dg-pool dg-pool-yellow" data-title="pool 1&#10;node5..node8&#10;/data1 /data2">
+            <div class="disk-matrix">
+              <div class="dg-node dg-node-yellow dg-node-compact">node5<small>/data1<br />/data2</small></div>
+              <div class="dg-node dg-node-yellow dg-node-compact">node6<small>/data1<br />/data2</small></div>
+              <div class="dg-node dg-node-yellow dg-node-compact">node7<small>/data1<br />/data2</small></div>
+              <div class="dg-node dg-node-yellow dg-node-compact">node8<small>/data1<br />/data2</small></div>
+              <div class="dg-node dg-node-gray dg-node-wide">set 0<small>8 drives</small></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="dg-node dg-node-orange result">SetupType::DistErasure<small>per pool: 1 set x 8 drives<br />STANDARD: EC 4+4</small></div>
+      </section>
+
+      <svg class="dg-arrows" viewBox="0 0 1800 1040" aria-hidden="true">
+        <defs>
+          <marker id="arrow-head" viewBox="0 0 14 14" refX="12" refY="7" markerWidth="14" markerHeight="14" orient="auto">
+            <path d="M 2 2 L 12 7 L 2 12 Z" fill="#2563eb" />
+          </marker>
+          <marker id="arrow-head-muted" viewBox="0 0 14 14" refX="12" refY="7" markerWidth="14" markerHeight="14" orient="auto">
+            <path d="M 2 2 L 12 7 L 2 12 Z" fill="#64748b" />
+          </marker>
+        </defs>
+
+        <g fill="none" stroke="#2563eb" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-head)">
+          <path d="M 269 232 L 269 274" />
+          <path d="M 269 386 L 269 428" />
+          <path d="M 269 540 L 269 602" />
+          <path d="M 269 714 L 269 756" />
+          <path d="M 494 658 H 516 V 220 H 556" />
+          <path d="M 704 278 V 342" />
+          <path d="M 704 466 V 530" />
+          <path d="M 910 594 H 968 V 222 H 1037" />
+          <path d="M 1304 742 V 792 H 1358" />
+          <path d="M 1590 742 V 792 H 1536" />
+        </g>
+        <path
+          d="M 704 654 V 718"
+          fill="none"
+          stroke="#64748b"
+          stroke-width="3"
+          stroke-linecap="round"
+          stroke-dasharray="9 8"
+          marker-end="url(#arrow-head-muted)"
+        />
+      </svg>
+
+      <div class="dg-step" style="left: 250px; top: 236px">1</div>
+      <div class="dg-step" style="left: 250px; top: 390px">2</div>
+      <div class="dg-step" style="left: 250px; top: 560px">3</div>
+      <div class="dg-step" style="left: 250px; top: 720px">4</div>
+      <div class="dg-step" style="left: 498px; top: 639px">5</div>
+      <div class="dg-step" style="left: 685px; top: 292px">6</div>
+      <div class="dg-step" style="left: 685px; top: 480px">7</div>
+      <div class="dg-step dg-step-muted" style="left: 685px; top: 668px">8</div>
+      <div class="dg-step" style="left: 948px; top: 575px">9</div>
+      <div class="dg-step" style="left: 1285px; top: 756px">10</div>
+      <div class="dg-step" style="left: 1571px; top: 756px">11</div>
+      <div class="dg-step" style="left: 1344px; top: 773px">12</div>
+      <div class="dg-step" style="left: 1514px; top: 773px">13</div>
+
+      <div class="dg-label" style="left: 404px; top: 612px">read volumes</div>
+      <div class="dg-label" style="left: 902px; top: 495px">same topology view</div>
+
+      <p class="dg-note" style="left: 72px; bottom: 34px; width: 985px">
+        The figure separates the source reading path from the observed 8-node / 16-disk Docker topology; it is not a runtime stack trace.
+      </p>
+
+      <div class="dg-legend" style="left: 72px; bottom: 10px" aria-hidden="true">
+        <span class="dg-legend-item"><i class="dg-swatch dg-swatch-blue"></i>startup function / pool 0</span>
+        <span class="dg-legend-item"><i class="dg-swatch dg-swatch-green"></i>runtime topology state</span>
+        <span class="dg-legend-item"><i class="dg-swatch dg-swatch-yellow"></i>volume endpoint / pool 1</span>
+        <span class="dg-legend-item"><i class="dg-swatch dg-swatch-orange"></i>derived setup</span>
+      </div>
+    </main>
+  </body>
+</html>

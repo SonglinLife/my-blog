@@ -21,8 +21,8 @@ http://node{1...4}:9000/data{1...2} http://node{5...8}:9000/data{1...2}
 
 这条链路会经过 `async_main()`、`run(config)`、`init_startup_listen_context()` 和 `init_startup_storage_foundation()`。最后得到的不是单机 erasure，而是 `SetupType::DistErasure`；每个 pool 自动选择 1 个 8-drive set；默认 STANDARD storage class 下，8-drive set 的 EC 是 **4+4**。
 
-![RustFS startup reading map with async_main, run, listen context, storage foundation, process-global state, and observed two-pool DistErasure topology](https://img.f3dlife.com/blog/2026/07/01/startup-topology-a2e5c8ed-7803-4b11-a51f-c55b4a95ac1c.svg)
-Fig. 这张图是阅读地图，不是运行时调用栈截图：左侧是启动主干，中间是进程内全局状态，右侧是本文环境从 `RUSTFS_VOLUMES` 推导出的 2 pool / DistErasure / EC 4+4 结果。
+![RustFS startup control path expands RUSTFS_VOLUMES into two pools, eight nodes, sixteen disk endpoints, DistErasure, and EC 4+4](https://img.f3dlife.com/blog/2026/07/01/startup-topology-6e1d5f87-0087-4efb-af01-43626233281b.png)
+Fig. 这张图是源码阅读地图，不是运行时调用栈截图：左侧沿启动主干走到 storage foundation，中间记录 `ServerOpts.volumes`、`DisksLayout` 和 `EndpointServerPools` 的状态转换，右侧把本文环境展开成 2 pool / 8 节点 / 16 endpoint，并落到 `SetupType::DistErasure` 与默认 EC 4+4。
 
 ## 目录
 

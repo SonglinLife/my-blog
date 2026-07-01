@@ -93,7 +93,7 @@ Mermaid is usually too weak for final systems diagrams when the post needs:
 - visual grouping by ownership or failure domain;
 - storage layouts, metadata schemas, topology, or before/after state.
 
-When Mermaid feels limiting, switch to programmatic SVG or hand-built SVG/HTML/CSS immediately instead of spending time fighting the renderer.
+When Mermaid feels limiting, switch to the HTML/CSS diagram workflow immediately instead of spending time fighting the renderer. Use programmatic SVG only when geometry lint or a narrow edit to an existing JSON diagram is the better tradeoff.
 
 ## Label Discipline
 

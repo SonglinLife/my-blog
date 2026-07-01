@@ -1,6 +1,6 @@
 ---
 name: blog-architecture-diagrams
-description: Use when creating or revising technical blog images for this repository, especially architecture diagrams, workflow diagrams, layer diagrams, state-change diagrams, storage topology diagrams, or any image where Mermaid would be too weak for precise layout, grouping, arrows, labels, or mobile readability.
+description: Use when creating or revising technical blog images for this repository, especially architecture diagrams, workflow diagrams, layer diagrams, state-change diagrams, storage topology diagrams, or any image where HTML/CSS, SVG overlays, or Mermaid alternatives are needed for precise layout, grouping, arrows, labels, or mobile readability.
 ---
 
 # Blog Architecture Diagrams
@@ -9,11 +9,11 @@ description: Use when creating or revising technical blog images for this reposi
 
 Create precise, editable engineering diagrams for this blog. Use this skill whenever a post needs an architecture, workflow, topology, state-change, storage, networking, runtime, Kubernetes, Linux, Rust internals, or distributed-systems diagram.
 
-The default output should be an editable/reproducible diagram source plus an exported SVG or PNG in `src/data/blog/<post-slug>-assets/`. Mermaid is only acceptable for small drafts or very simple linear flows.
+The default output should be an editable/reproducible diagram source plus an exported SVG or PNG in `src/data/blog/<post-slug>-assets/`. Prefer **HTML/CSS diagram pages using the local Tailwind-backed diagram kit** for serious diagrams because CSS Grid, Flexbox, custom properties, component classes, and inline SVG overlays express layout more efficiently than hand-authored SVG coordinates. Mermaid is only acceptable for small drafts or very simple linear flows.
 
 ## Required Project Context
 
-Before drawing, read `docs/technical-visual-style.md`. For detailed style heuristics, also read `references/diagram-style.md`.
+Before drawing, read `docs/technical-visual-style.md`. For detailed style heuristics, read `references/diagram-style.md`. When using the default HTML/CSS path, also read `references/html-css-diagram-workflow.md`.
 
 Keep the repository rules from `AGENTS.md`: do not copy third-party diagrams, do not invent evidence, do not leave private data or local-only image paths in released posts, and ensure every image has meaningful alt text and a `Fig.` caption.
 
@@ -26,14 +26,15 @@ Keep the repository rules from `AGENTS.md`: do not copy third-party diagrams, do
    - arrow lanes: reserved horizontal/vertical corridors where arrows can travel without crossing node labels;
    - verified evidence source for each major label.
 2. Choose the rendering path:
-   - **Programmatic SVG** for most serious architecture diagrams. Prefer `scripts/render-architecture-svg.js` with a JSON spec when the diagram needs zones, arrows, numbered steps, precise labels, or repeated style.
-   - **Handwritten SVG/HTML/CSS** when the layout needs custom geometry beyond the helper script.
+   - **HTML/CSS diagram page (default)** for most architecture/workflow/topology diagrams. Use `assets/html-diagram-template.html` plus `assets/diagram-kit.css`, keep the source as `<name>.diagram.html`, and export to PNG/SVG for the post.
+   - **Programmatic SVG** when deterministic geometry lint is more valuable than CSS layout, or when a small existing `.diagram.json` only needs a narrow edit. Use `scripts/render-architecture-svg.js` with a JSON spec.
+   - **Handwritten SVG** only for custom geometry that is simpler as vector paths than DOM layout.
    - **Terminal screenshot** via `scripts/render-terminal-screenshot.js` when output/logs are the evidence.
    - **Mermaid** only for quick drafts, tiny sequence/flow diagrams, or temporary planning notes. Do not use Mermaid as the final format for complex system maps.
 3. Create or edit sources next to the post assets:
-   - `src/data/blog/<slug>-assets/<name>.diagram.json`
-   - `src/data/blog/<slug>-assets/<name>.svg`
-   - optional exported PNG if the renderer/browser pipeline needs it.
+   - preferred: `src/data/blog/<slug>-assets/<name>.diagram.html`
+   - exported: `src/data/blog/<slug>-assets/<name>.png` or `<name>.svg`
+   - fallback SVG path: `<name>.diagram.json` plus `<name>.svg`
 4. Render and inspect:
    - run the relevant script;
    - open the SVG/PNG or inspect it with screenshot/image tools when possible;
@@ -43,7 +44,33 @@ Keep the repository rules from `AGENTS.md`: do not copy third-party diagrams, do
    - caption begins with `Fig.`;
    - surrounding prose says what to notice.
 
-## Programmatic SVG Quick Start
+## HTML/CSS Quick Start
+
+Copy the template:
+
+```bash
+cp .codex/skills/blog-architecture-diagrams/assets/html-diagram-template.html \
+  src/data/blog/<slug>-assets/<name>.diagram.html
+```
+
+Edit the HTML source with real labels and source-backed facts. Use the `dg-*` classes from `assets/diagram-kit.css` for common components. Then validate the source:
+
+```bash
+node .codex/skills/blog-architecture-diagrams/scripts/validate-html-diagram.js \
+  src/data/blog/<slug>-assets/<name>.diagram.html
+```
+
+Export with a local browser when available:
+
+```bash
+node .codex/skills/blog-architecture-diagrams/scripts/export-html-diagram.js \
+  src/data/blog/<slug>-assets/<name>.diagram.html \
+  src/data/blog/<slug>-assets/<name>.png
+```
+
+The export script compiles the local Tailwind-backed kit into a self-contained `.built.html` before taking the screenshot. If the machine has no Chrome/Chromium/Playwright-capable browser, run `build-html-diagram.js`, open the generated `.built.html` in a browser, capture/export the fixed-size canvas, then inspect the PNG/SVG before embedding.
+
+## Programmatic SVG Fallback
 
 Create a JSON spec:
 
@@ -89,6 +116,7 @@ The validator checks path/node collisions, label overlap, arrow self-crossing, p
 ## Style Requirements
 
 - Use large plain canvases: `1600x900`, `1800x1000`, or wider for dense systems.
+- Prefer the local diagram kit component classes for consistency: `dg-canvas`, `dg-zone-*`, `dg-node-*`, `dg-pool-*`, `dg-step`, `dg-label`, `dg-note`, and `dg-legend`. Add small per-diagram CSS only for diagram-specific grid tracks, dimensions, and arrow coordinates.
 - Use muted flat colors and thin outlines:
   - blue: pods, services, control-plane components;
   - green: clients, agents, plugins, sidecars;
@@ -105,7 +133,7 @@ The validator checks path/node collisions, label overlap, arrow self-crossing, p
   - place labels beside arrows or in reserved whitespace, not directly on top of busy line intersections;
   - put step circles on or immediately beside the arrow path, near the start of a segment or a bend, and away from labels and node borders;
   - never use an arrow to connect parallel conclusions that do not have a real causal/control/data relationship.
-- Use Bezier/freeform curves only as a deliberate custom diagram choice. The default renderer should keep rounded orthogonal routing because it is easier to lint, reproduce, and revise.
+- Use Bezier/freeform curves only as a deliberate custom diagram choice. For SVG fallback diagrams, keep rounded orthogonal routing because it is easier to lint, reproduce, and revise.
 - Avoid huge titles inside the image, decorative gradients, neon accents, slide-cover composition, fake dashboards, fake terminal output, and copied third-party layout.
 
 ## Quality Gate
@@ -113,12 +141,13 @@ The validator checks path/node collisions, label overlap, arrow self-crossing, p
 Before considering a diagram done:
 
 - source is editable or reproducible;
-- `npm run diagram:check -- <diagram.json>` passes for every programmatic SVG source;
+- HTML/CSS diagrams pass `validate-html-diagram.js`; programmatic SVG diagrams pass `npm run diagram:check -- <diagram.json>`;
 - every major label is verified;
 - the diagram answers one concrete question;
 - arrows encode real control/data/state direction;
 - arrows do not cross node labels, visually detach from step circles, or require the reader to untangle decorative bends;
 - parallel conclusions are placed as notes or sibling boxes, not chained by arrows;
 - text is readable at mobile width;
+- the source does not depend on remote CSS, icon fonts, CDN scripts, or private local paths;
 - no third-party diagram, watermark, badge, or distinctive layout was copied;
 - exported asset is referenced with meaningful alt text and a `Fig.` caption.
