@@ -1,0 +1,315 @@
+{
+  "title": "RustFS PUT Object write path",
+  "width": 2600,
+  "height": 820,
+  "background": "#fbfbf7",
+  "accent": "#2563eb",
+  "defaultStartGap": 10,
+  "defaultEndGap": 14,
+  "zones": [
+    {
+      "id": "client",
+      "label": "Client",
+      "x": 55,
+      "y": 120,
+      "w": 180,
+      "h": 350,
+      "tone": "green"
+    },
+    {
+      "id": "api",
+      "label": "S3 API / application layer",
+      "x": 255,
+      "y": 120,
+      "w": 760,
+      "h": 350,
+      "tone": "blue"
+    },
+    {
+      "id": "store",
+      "label": "ECStore runtime",
+      "x": 1040,
+      "y": 120,
+      "w": 720,
+      "h": 350,
+      "tone": "gray"
+    },
+    {
+      "id": "disk",
+      "label": "Selected SetDisks / disk layer",
+      "x": 1785,
+      "y": 120,
+      "w": 750,
+      "h": 350,
+      "tone": "yellow"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "request",
+      "label": "PUT\n/<bucket>/<object>",
+      "x": 85,
+      "y": 255,
+      "w": 120,
+      "h": 95,
+      "tone": "green",
+      "fontSize": 20
+    },
+    {
+      "id": "s3s",
+      "label": "s3s::S3Service\nS3Request",
+      "x": 295,
+      "y": 255,
+      "w": 140,
+      "h": 95,
+      "tone": "blue",
+      "fontSize": 20
+    },
+    {
+      "id": "access",
+      "label": "FS as S3Access\nauthorize",
+      "x": 505,
+      "y": 255,
+      "w": 140,
+      "h": 95,
+      "tone": "blue",
+      "fontSize": 20
+    },
+    {
+      "id": "handler",
+      "label": "FS as S3\nput_object",
+      "x": 715,
+      "y": 255,
+      "w": 140,
+      "h": 95,
+      "tone": "blue",
+      "fontSize": 20
+    },
+    {
+      "id": "usecase",
+      "label": "execute_put_object\nPutObjReader",
+      "x": 925,
+      "y": 255,
+      "w": 150,
+      "h": 95,
+      "tone": "blue",
+      "fontSize": 19
+    },
+    {
+      "id": "ecstore",
+      "label": "ECStore\nput_object",
+      "x": 1145,
+      "y": 255,
+      "w": 140,
+      "h": 95,
+      "tone": "gray",
+      "fontSize": 20
+    },
+    {
+      "id": "pool",
+      "label": "get_pool_idx\nkeep or choose pool",
+      "x": 1355,
+      "y": 255,
+      "w": 150,
+      "h": 95,
+      "tone": "gray",
+      "fontSize": 19
+    },
+    {
+      "id": "sets",
+      "label": "Sets::put_object\nhash object key",
+      "x": 1585,
+      "y": 255,
+      "w": 150,
+      "h": 95,
+      "tone": "gray",
+      "fontSize": 19
+    },
+    {
+      "id": "setdisk",
+      "label": "SetDisks\n8 disk slots",
+      "x": 1820,
+      "y": 255,
+      "w": 140,
+      "h": 95,
+      "tone": "yellow",
+      "fontSize": 20
+    },
+    {
+      "id": "writers",
+      "label": "bitrot writers\ntmp/part.1",
+      "x": 2025,
+      "y": 255,
+      "w": 140,
+      "h": 95,
+      "tone": "yellow",
+      "fontSize": 20
+    },
+    {
+      "id": "encode",
+      "label": "Erasure::encode*\ndata + parity",
+      "x": 2230,
+      "y": 255,
+      "w": 140,
+      "h": 95,
+      "tone": "yellow",
+      "fontSize": 20
+    },
+    {
+      "id": "commit",
+      "label": "rename_data\nxl.meta commit",
+      "x": 2435,
+      "y": 255,
+      "w": 140,
+      "h": 95,
+      "tone": "yellow",
+      "fontSize": 20
+    }
+  ],
+  "arrows": [
+    {
+      "from": "request",
+      "to": "s3s",
+      "step": 1,
+      "stepAt": {
+        "x": 250,
+        "y": 303
+      }
+    },
+    {
+      "from": "s3s",
+      "to": "access",
+      "step": 2,
+      "stepAt": {
+        "x": 470,
+        "y": 303
+      }
+    },
+    {
+      "from": "access",
+      "to": "handler",
+      "step": 3,
+      "stepAt": {
+        "x": 680,
+        "y": 303
+      }
+    },
+    {
+      "from": "handler",
+      "to": "usecase",
+      "step": 4,
+      "stepAt": {
+        "x": 890,
+        "y": 303
+      }
+    },
+    {
+      "from": "usecase",
+      "to": "ecstore",
+      "step": 5,
+      "stepAt": {
+        "x": 1110,
+        "y": 303
+      }
+    },
+    {
+      "from": "ecstore",
+      "to": "pool",
+      "step": 6,
+      "stepAt": {
+        "x": 1320,
+        "y": 303
+      }
+    },
+    {
+      "from": "pool",
+      "to": "sets",
+      "step": 7,
+      "stepAt": {
+        "x": 1545,
+        "y": 303
+      }
+    },
+    {
+      "from": "sets",
+      "to": "setdisk",
+      "step": 8,
+      "stepAt": {
+        "x": 1778,
+        "y": 303
+      }
+    },
+    {
+      "from": "setdisk",
+      "to": "writers",
+      "step": 9,
+      "stepAt": {
+        "x": 1992,
+        "y": 303
+      }
+    },
+    {
+      "from": "writers",
+      "to": "encode",
+      "step": 10,
+      "stepAt": {
+        "x": 2198,
+        "y": 303
+      }
+    },
+    {
+      "from": "encode",
+      "to": "commit",
+      "step": 11,
+      "stepAt": {
+        "x": 2402,
+        "y": 303
+      }
+    }
+  ],
+  "notes": [
+    {
+      "text": "Object key excludes bucket. The final disk path still includes bucket: <disk>/<bucket>/<object>/xl.meta.",
+      "x": 95,
+      "y": 555,
+      "w": 650,
+      "maxChars": 74
+    },
+    {
+      "text": "For the 8-disk 4+4 set used here: read quorum = 4, write quorum = 5. Disk is Local or Remote.",
+      "x": 835,
+      "y": 555,
+      "w": 650,
+      "maxChars": 74
+    },
+    {
+      "text": "Large body data is written to temporary shard paths before commit; rename_data writes the final xl.meta under the object write lock.",
+      "x": 1575,
+      "y": 555,
+      "w": 870,
+      "maxChars": 92
+    }
+  ],
+  "legend": {
+    "x": 85,
+    "y": 735,
+    "items": [
+      {
+        "tone": "green",
+        "label": "client"
+      },
+      {
+        "tone": "blue",
+        "label": "S3/application"
+      },
+      {
+        "tone": "gray",
+        "label": "pool/set selection"
+      },
+      {
+        "tone": "yellow",
+        "label": "disk metadata/data"
+      }
+    ]
+  }
+}
