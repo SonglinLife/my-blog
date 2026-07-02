@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>RustFS ECStore format initialization</title>
+    <link rel="stylesheet" href="./diagram-kit.css" data-diagram-kit />
+    <style data-diagram-css>
+      .ecstore-format-diagram {
+        width: 1800px;
+        height: 1000px;
+        grid-template-columns: 430px 520px 520px;
+        gap: 54px;
+        padding: 86px 72px 104px;
+      }
+
+      .runtime-flow {
+        display: grid;
+        grid-template-rows: auto auto auto 1fr;
+        gap: 26px;
+      }
+
+      .pool-flow {
+        display: grid;
+        grid-template-rows: auto auto auto auto;
+        gap: 24px;
+      }
+
+      .first-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 18px;
+      }
+
+      .format-list {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 14px;
+      }
+
+      .format-list .dg-node {
+        min-height: 70px;
+        font-size: 17px;
+        padding: 12px 10px;
+      }
+
+      .format-list .dg-node small {
+        font-size: 14px;
+      }
+
+      .note-left {
+        left: 96px;
+        bottom: 42px;
+        max-width: 760px;
+      }
+
+      .note-right {
+        right: 96px;
+        bottom: 42px;
+        max-width: 780px;
+      }
+    </style>
+  </head>
+  <body>
+    <main
+      class="dg-canvas ecstore-format-diagram"
+      data-diagram-root
+      data-width="1800"
+      data-height="1000"
+      aria-label="RustFS ECStore initialization flow where pool0 writes format.json first and pool1 reuses the deployment id"
+    >
+      <section class="dg-zone dg-zone-blue runtime-flow" data-title="ECStore::new()">
+        <div class="dg-node dg-node-blue">endpoint_pools<small>2 pools from RUSTFS_VOLUMES</small></div>
+        <div class="dg-node dg-node-blue">for pool in endpoint_pools<small>pool order is stable</small></div>
+        <div class="dg-node dg-node-gray">deployment_id = None<small>before pool 0 succeeds</small></div>
+        <div class="dg-node dg-node-gray">deployment_id = Some(fm.id)<small>after pool 0 format quorum</small></div>
+      </section>
+
+      <section class="dg-zone dg-zone-green pool-flow" data-title="pool 0: node1..node4">
+        <div class="first-row">
+          <div class="dg-node dg-node-green">node1<small>first endpoint</small></div>
+          <div class="dg-node dg-node-gray">node2..node4<small>retry when NotFirstDisk</small></div>
+        </div>
+        <div class="dg-node dg-node-blue">connect_load_init_formats()<small>first_disk = true on node1</small></div>
+        <div class="dg-node dg-node-yellow">init_format_erasure()<small>FormatV3::new() creates fm.id</small></div>
+        <div class="format-list">
+          <div class="dg-node dg-node-yellow">node1 /data1<small>LocalDisk::write_all</small></div>
+          <div class="dg-node dg-node-yellow">node1 /data2<small>LocalDisk::write_all</small></div>
+          <div class="dg-node dg-node-yellow">node2 /data1</div>
+          <div class="dg-node dg-node-yellow">node2 /data2</div>
+          <div class="dg-node dg-node-yellow">node3 /data1</div>
+          <div class="dg-node dg-node-yellow">node3 /data2</div>
+          <div class="dg-node dg-node-yellow">node4 /data1</div>
+          <div class="dg-node dg-node-yellow">node4 /data2<small>RemoteDisk RPC path</small></div>
+        </div>
+      </section>
+
+      <section class="dg-zone dg-zone-yellow pool-flow" data-title="pool 1: node5..node8">
+        <div class="first-row">
+          <div class="dg-node dg-node-green">node5<small>first endpoint</small></div>
+          <div class="dg-node dg-node-gray">node6..node8<small>same retry rule</small></div>
+        </div>
+        <div class="dg-node dg-node-blue">connect_load_init_formats()<small>deployment_id already Some(...)</small></div>
+        <div class="dg-node dg-node-yellow">init_format_erasure()<small>newfm.id = deployment_id</small></div>
+        <div class="format-list">
+          <div class="dg-node dg-node-yellow">node5 /data1</div>
+          <div class="dg-node dg-node-yellow">node5 /data2</div>
+          <div class="dg-node dg-node-yellow">node6 /data1</div>
+          <div class="dg-node dg-node-yellow">node6 /data2</div>
+          <div class="dg-node dg-node-yellow">node7 /data1</div>
+          <div class="dg-node dg-node-yellow">node7 /data2</div>
+          <div class="dg-node dg-node-yellow">node8 /data1</div>
+          <div class="dg-node dg-node-yellow">node8 /data2<small>same deployment id</small></div>
+        </div>
+      </section>
+
+      <svg class="dg-arrows" viewBox="0 0 1800 1000" aria-hidden="true">
+        <defs>
+          <marker id="arrow-head" viewBox="0 0 14 14" refX="12" refY="7" markerWidth="14" markerHeight="14" orient="auto">
+            <path d="M 2 2 L 12 7 L 2 12 Z" fill="#2563eb" />
+          </marker>
+          <marker id="arrow-head-muted" viewBox="0 0 14 14" refX="12" refY="7" markerWidth="14" markerHeight="14" orient="auto">
+            <path d="M 2 2 L 12 7 L 2 12 Z" fill="#64748b" />
+          </marker>
+        </defs>
+        <path d="M 455 356 H 556" fill="none" stroke="#2563eb" stroke-width="4" marker-end="url(#arrow-head)" />
+        <path d="M 812 326 V 385" fill="none" stroke="#2563eb" stroke-width="4" marker-end="url(#arrow-head)" />
+        <path d="M 812 505 V 570" fill="none" stroke="#2563eb" stroke-width="4" marker-end="url(#arrow-head)" />
+        <path d="M 1034 624 C 1090 624 1112 548 1168 548 H 1210" fill="none" stroke="#64748b" stroke-width="3" stroke-dasharray="12 10" marker-end="url(#arrow-head-muted)" />
+        <path d="M 455 606 C 688 848 1030 848 1280 325" fill="none" stroke="#2563eb" stroke-width="4" marker-end="url(#arrow-head)" />
+        <path d="M 1480 326 V 385" fill="none" stroke="#2563eb" stroke-width="4" marker-end="url(#arrow-head)" />
+        <path d="M 1480 505 V 570" fill="none" stroke="#2563eb" stroke-width="4" marker-end="url(#arrow-head)" />
+      </svg>
+
+      <div class="dg-step" style="left: 480px; top: 335px">1</div>
+      <div class="dg-step" style="left: 792px; top: 348px">2</div>
+      <div class="dg-step" style="left: 792px; top: 526px">3</div>
+      <div class="dg-step" style="left: 908px; top: 818px">4</div>
+      <div class="dg-step" style="left: 1460px; top: 348px">5</div>
+      <div class="dg-step" style="left: 1460px; top: 526px">6</div>
+
+      <p class="dg-note note-left">format id is persisted in per-disk <code>.rustfs.sys/format.json</code>; it is not broadcast as a separate cluster-control message.</p>
+      <p class="dg-note note-right">pool1 first node still creates pool1 disk UUIDs, but <code>newfm.id</code> is overwritten by the deployment id already read from pool0.</p>
+    </main>
+  </body>
+</html>

@@ -1,0 +1,647 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>RustFS ECStore format initialization</title>
+    <style data-diagram-built>
+/*! tailwindcss v4.2.2 | MIT License | https://tailwindcss.com */
+@layer properties;
+@layer theme, base, components, utilities;
+@layer theme {
+  :root, :host {
+    --font-sans: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji",
+      "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+      "Courier New", monospace;
+    --color-yellow-100: oklch(97.3% 0.071 103.193);
+    --color-yellow-600: oklch(68.1% 0.162 75.834);
+    --color-green-100: oklch(96.2% 0.044 156.743);
+    --color-green-500: oklch(72.3% 0.219 149.579);
+    --color-blue-100: oklch(93.2% 0.032 255.585);
+    --color-blue-400: oklch(70.7% 0.165 254.624);
+    --color-slate-200: oklch(92.9% 0.013 255.508);
+    --color-slate-400: oklch(70.4% 0.04 256.788);
+    --color-slate-800: oklch(27.9% 0.041 260.031);
+    --color-white: #fff;
+    --spacing: 0.25rem;
+    --font-weight-semibold: 600;
+    --font-weight-bold: 700;
+    --font-weight-extrabold: 800;
+    --radius-lg: 0.5rem;
+    --default-font-family: var(--font-sans);
+    --default-mono-font-family: var(--font-mono);
+    --color-diagram-bg: #fbfbf7;
+    --color-diagram-ink: #0f172a;
+    --color-diagram-muted: #334155;
+    --color-diagram-line: #cbd5e1;
+    --color-diagram-blue-bg: #dbeafe;
+    --color-diagram-blue: #2563eb;
+    --color-diagram-green-bg: #dcfce7;
+    --color-diagram-green: #16a34a;
+    --color-diagram-yellow-bg: #fef3c7;
+    --color-diagram-yellow: #d97706;
+    --color-diagram-orange-bg: #ffedd5;
+    --color-diagram-orange: #ea580c;
+    --color-diagram-gray-bg: #f8fafc;
+    --color-diagram-gray: #64748b;
+  }
+}
+@layer base {
+  *, ::after, ::before, ::backdrop, ::file-selector-button {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    border: 0 solid;
+  }
+  html, :host {
+    line-height: 1.5;
+    -webkit-text-size-adjust: 100%;
+    tab-size: 4;
+    font-family: var(--default-font-family, ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji");
+    font-feature-settings: var(--default-font-feature-settings, normal);
+    font-variation-settings: var(--default-font-variation-settings, normal);
+    -webkit-tap-highlight-color: transparent;
+  }
+  hr {
+    height: 0;
+    color: inherit;
+    border-top-width: 1px;
+  }
+  abbr:where([title]) {
+    -webkit-text-decoration: underline dotted;
+    text-decoration: underline dotted;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-size: inherit;
+    font-weight: inherit;
+  }
+  a {
+    color: inherit;
+    -webkit-text-decoration: inherit;
+    text-decoration: inherit;
+  }
+  b, strong {
+    font-weight: bolder;
+  }
+  code, kbd, samp, pre {
+    font-family: var(--default-mono-font-family, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace);
+    font-feature-settings: var(--default-mono-font-feature-settings, normal);
+    font-variation-settings: var(--default-mono-font-variation-settings, normal);
+    font-size: 1em;
+  }
+  small {
+    font-size: 80%;
+  }
+  sub, sup {
+    font-size: 75%;
+    line-height: 0;
+    position: relative;
+    vertical-align: baseline;
+  }
+  sub {
+    bottom: -0.25em;
+  }
+  sup {
+    top: -0.5em;
+  }
+  table {
+    text-indent: 0;
+    border-color: inherit;
+    border-collapse: collapse;
+  }
+  :-moz-focusring {
+    outline: auto;
+  }
+  progress {
+    vertical-align: baseline;
+  }
+  summary {
+    display: list-item;
+  }
+  ol, ul, menu {
+    list-style: none;
+  }
+  img, svg, video, canvas, audio, iframe, embed, object {
+    display: block;
+    vertical-align: middle;
+  }
+  img, video {
+    max-width: 100%;
+    height: auto;
+  }
+  button, input, select, optgroup, textarea, ::file-selector-button {
+    font: inherit;
+    font-feature-settings: inherit;
+    font-variation-settings: inherit;
+    letter-spacing: inherit;
+    color: inherit;
+    border-radius: 0;
+    background-color: transparent;
+    opacity: 1;
+  }
+  :where(select:is([multiple], [size])) optgroup {
+    font-weight: bolder;
+  }
+  :where(select:is([multiple], [size])) optgroup option {
+    padding-inline-start: 20px;
+  }
+  ::file-selector-button {
+    margin-inline-end: 4px;
+  }
+  ::placeholder {
+    opacity: 1;
+  }
+  @supports (not (-webkit-appearance: -apple-pay-button))  or (contain-intrinsic-size: 1px) {
+    ::placeholder {
+      color: currentcolor;
+      @supports (color: color-mix(in lab, red, red)) {
+        color: color-mix(in oklab, currentcolor 50%, transparent);
+      }
+    }
+  }
+  textarea {
+    resize: vertical;
+  }
+  ::-webkit-search-decoration {
+    -webkit-appearance: none;
+  }
+  ::-webkit-date-and-time-value {
+    min-height: 1lh;
+    text-align: inherit;
+  }
+  ::-webkit-datetime-edit {
+    display: inline-flex;
+  }
+  ::-webkit-datetime-edit-fields-wrapper {
+    padding: 0;
+  }
+  ::-webkit-datetime-edit, ::-webkit-datetime-edit-year-field, ::-webkit-datetime-edit-month-field, ::-webkit-datetime-edit-day-field, ::-webkit-datetime-edit-hour-field, ::-webkit-datetime-edit-minute-field, ::-webkit-datetime-edit-second-field, ::-webkit-datetime-edit-millisecond-field, ::-webkit-datetime-edit-meridiem-field {
+    padding-block: 0;
+  }
+  ::-webkit-calendar-picker-indicator {
+    line-height: 1;
+  }
+  :-moz-ui-invalid {
+    box-shadow: none;
+  }
+  button, input:where([type="button"], [type="reset"], [type="submit"]), ::file-selector-button {
+    appearance: button;
+  }
+  ::-webkit-inner-spin-button, ::-webkit-outer-spin-button {
+    height: auto;
+  }
+  [hidden]:where(:not([hidden="until-found"])) {
+    display: none !important;
+  }
+}
+@layer utilities;
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+  body {
+    margin: calc(var(--spacing) * 0);
+    display: grid;
+    min-height: 100vh;
+    place-items: center;
+    background-color: var(--color-slate-200);
+    color: var(--color-diagram-ink);
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+}
+@layer components {
+  .dg-canvas {
+    position: relative;
+    display: grid;
+    overflow: hidden;
+    background-color: var(--color-diagram-bg);
+  }
+  .dg-zone {
+    position: relative;
+    min-width: calc(var(--spacing) * 0);
+    border-radius: 10px;
+    border-style: var(--tw-border-style);
+    border-width: 2px;
+    border-color: var(--color-diagram-line);
+    background-color: color-mix(in srgb, #fff 35%, transparent);
+    @supports (color: color-mix(in lab, red, red)) {
+      background-color: color-mix(in oklab, var(--color-white) 35%, transparent);
+    }
+    padding-inline: calc(var(--spacing) * 7);
+    padding-top: 68px;
+    padding-bottom: calc(var(--spacing) * 7);
+  }
+  .dg-zone::before {
+    content: attr(data-title);
+    position: absolute;
+    top: calc(var(--spacing) * 5);
+    left: calc(var(--spacing) * 6);
+    font-size: 25px;
+    --tw-font-weight: var(--font-weight-bold);
+    font-weight: var(--font-weight-bold);
+    color: var(--color-diagram-ink);
+  }
+  .dg-zone-blue {
+    border-color: color-mix(in srgb, oklch(70.7% 0.165 254.624) 70%, transparent);
+    @supports (color: color-mix(in lab, red, red)) {
+      border-color: color-mix(in oklab, var(--color-blue-400) 70%, transparent);
+    }
+    background-color: color-mix(in srgb, oklch(93.2% 0.032 255.585) 45%, transparent);
+    @supports (color: color-mix(in lab, red, red)) {
+      background-color: color-mix(in oklab, var(--color-blue-100) 45%, transparent);
+    }
+  }
+  .dg-zone-green {
+    border-color: color-mix(in srgb, oklch(72.3% 0.219 149.579) 60%, transparent);
+    @supports (color: color-mix(in lab, red, red)) {
+      border-color: color-mix(in oklab, var(--color-green-500) 60%, transparent);
+    }
+    background-color: color-mix(in srgb, oklch(96.2% 0.044 156.743) 45%, transparent);
+    @supports (color: color-mix(in lab, red, red)) {
+      background-color: color-mix(in oklab, var(--color-green-100) 45%, transparent);
+    }
+  }
+  .dg-zone-yellow {
+    border-color: color-mix(in srgb, oklch(68.1% 0.162 75.834) 55%, transparent);
+    @supports (color: color-mix(in lab, red, red)) {
+      border-color: color-mix(in oklab, var(--color-yellow-600) 55%, transparent);
+    }
+    background-color: color-mix(in srgb, oklch(97.3% 0.071 103.193) 50%, transparent);
+    @supports (color: color-mix(in lab, red, red)) {
+      background-color: color-mix(in oklab, var(--color-yellow-100) 50%, transparent);
+    }
+  }
+  .dg-stack {
+    display: grid;
+    align-content: flex-start;
+    gap: 30px;
+  }
+  .dg-node {
+    display: grid;
+    min-height: 92px;
+    width: 100%;
+    max-width: 100%;
+    min-width: calc(var(--spacing) * 0);
+    place-items: center;
+    border-radius: var(--radius-lg);
+    border-style: var(--tw-border-style);
+    border-width: 3px;
+    border-color: var(--color-diagram-line);
+    padding-inline: calc(var(--spacing) * 5);
+    padding-block: 18px;
+    text-align: center;
+    font-size: 23px;
+    --tw-leading: 1.16;
+    line-height: 1.16;
+    --tw-font-weight: var(--font-weight-bold);
+    font-weight: var(--font-weight-bold);
+    color: var(--color-diagram-ink);
+    word-break: normal;
+    overflow-wrap: normal;
+  }
+  .dg-node small {
+    margin-top: calc(var(--spacing) * 2);
+    display: block;
+    font-size: 18px;
+    --tw-leading: 1.18;
+    line-height: 1.18;
+    --tw-font-weight: var(--font-weight-semibold);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-diagram-muted);
+  }
+  .dg-node-blue {
+    border-color: var(--color-diagram-blue);
+    background-color: var(--color-diagram-blue-bg);
+  }
+  .dg-node-green {
+    border-color: var(--color-diagram-green);
+    background-color: var(--color-diagram-green-bg);
+  }
+  .dg-node-yellow {
+    border-color: var(--color-diagram-yellow);
+    background-color: var(--color-diagram-yellow-bg);
+  }
+  .dg-node-orange {
+    border-color: var(--color-diagram-orange);
+    background-color: var(--color-diagram-orange-bg);
+  }
+  .dg-node-gray {
+    border-color: var(--color-slate-400);
+    background-color: var(--color-white);
+  }
+  .dg-node-compact {
+    min-height: 78px;
+    padding-inline: calc(var(--spacing) * 2.5);
+    padding-block: calc(var(--spacing) * 3);
+    font-size: 18px;
+  }
+  .dg-node-compact small {
+    margin-top: calc(var(--spacing) * 1);
+    font-size: 15px;
+    --tw-leading: 1.2;
+    line-height: 1.2;
+  }
+  .dg-node-source {
+    font-size: 19px;
+  }
+  .dg-node-source small {
+    font-size: 17px;
+  }
+  .dg-node-wide {
+    grid-column: 1 / -1;
+  }
+  .dg-pool {
+    position: relative;
+    min-width: calc(var(--spacing) * 0);
+    border-radius: 10px;
+    border-style: var(--tw-border-style);
+    border-width: 2px;
+    border-color: var(--color-diagram-line);
+    padding-inline: calc(var(--spacing) * 6);
+    padding-top: calc(var(--spacing) * 28);
+    padding-bottom: 26px;
+  }
+  .dg-pool::before {
+    content: attr(data-title);
+    white-space: pre-line;
+    position: absolute;
+    top: 22px;
+    left: 22px;
+    font-size: 20px;
+    --tw-leading: 1.25;
+    line-height: 1.25;
+    --tw-font-weight: var(--font-weight-bold);
+    font-weight: var(--font-weight-bold);
+    color: var(--color-diagram-ink);
+  }
+  .dg-pool-blue {
+    border-color: color-mix(in srgb, oklch(70.7% 0.165 254.624) 70%, transparent);
+    @supports (color: color-mix(in lab, red, red)) {
+      border-color: color-mix(in oklab, var(--color-blue-400) 70%, transparent);
+    }
+    background-color: color-mix(in srgb, oklch(93.2% 0.032 255.585) 35%, transparent);
+    @supports (color: color-mix(in lab, red, red)) {
+      background-color: color-mix(in oklab, var(--color-blue-100) 35%, transparent);
+    }
+  }
+  .dg-pool-yellow {
+    border-color: color-mix(in srgb, oklch(68.1% 0.162 75.834) 55%, transparent);
+    @supports (color: color-mix(in lab, red, red)) {
+      border-color: color-mix(in oklab, var(--color-yellow-600) 55%, transparent);
+    }
+    background-color: color-mix(in srgb, oklch(97.3% 0.071 103.193) 45%, transparent);
+    @supports (color: color-mix(in lab, red, red)) {
+      background-color: color-mix(in oklab, var(--color-yellow-100) 45%, transparent);
+    }
+  }
+  .dg-step {
+    position: absolute;
+    z-index: 4;
+    display: grid;
+    width: 38px;
+    height: 38px;
+    place-items: center;
+    border-radius: calc(infinity * 1px);
+    border-style: var(--tw-border-style);
+    border-width: 4px;
+    border-color: var(--color-white);
+    background-color: var(--color-diagram-blue);
+    font-size: 21px;
+    --tw-font-weight: var(--font-weight-extrabold);
+    font-weight: var(--font-weight-extrabold);
+    color: var(--color-white);
+  }
+  .dg-step-muted {
+    background-color: var(--color-diagram-gray);
+  }
+  .dg-label {
+    position: absolute;
+    z-index: 3;
+    border-radius: 5px;
+    background-color: color-mix(in srgb, #fbfbf7 95%, transparent);
+    @supports (color: color-mix(in lab, red, red)) {
+      background-color: color-mix(in oklab, var(--color-diagram-bg) 95%, transparent);
+    }
+    padding-inline: calc(var(--spacing) * 2);
+    padding-block: calc(var(--spacing) * 1);
+    font-size: 19px;
+    --tw-leading: 1;
+    line-height: 1;
+    --tw-font-weight: var(--font-weight-bold);
+    font-weight: var(--font-weight-bold);
+    white-space: nowrap;
+    color: var(--color-slate-800);
+  }
+  .dg-note {
+    position: absolute;
+    border-radius: var(--radius-lg);
+    border-style: var(--tw-border-style);
+    border-width: 2px;
+    border-color: var(--color-diagram-line);
+    background-color: var(--color-diagram-gray-bg);
+    padding-inline: calc(var(--spacing) * 5);
+    padding-block: calc(var(--spacing) * 4);
+    font-size: 20px;
+    --tw-leading: 1.3;
+    line-height: 1.3;
+    color: var(--color-diagram-muted);
+  }
+  .dg-legend {
+    position: absolute;
+    display: flex;
+    align-items: center;
+    gap: 42px;
+    font-size: 18px;
+    --tw-font-weight: var(--font-weight-bold);
+    font-weight: var(--font-weight-bold);
+    color: var(--color-diagram-muted);
+  }
+  .dg-legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: calc(var(--spacing) * 2.5);
+  }
+  .dg-swatch {
+    height: 18px;
+    width: calc(var(--spacing) * 7);
+    border-radius: 0.25rem;
+    border-style: var(--tw-border-style);
+    border-width: 2px;
+  }
+  .dg-swatch-blue {
+    border-color: var(--color-diagram-blue);
+    background-color: var(--color-diagram-blue-bg);
+  }
+  .dg-swatch-green {
+    border-color: var(--color-diagram-green);
+    background-color: var(--color-diagram-green-bg);
+  }
+  .dg-swatch-yellow {
+    border-color: var(--color-diagram-yellow);
+    background-color: var(--color-diagram-yellow-bg);
+  }
+  .dg-swatch-orange {
+    border-color: var(--color-diagram-orange);
+    background-color: var(--color-diagram-orange-bg);
+  }
+  .dg-arrows {
+    pointer-events: none;
+    position: absolute;
+    inset: calc(var(--spacing) * 0);
+    z-index: 2;
+  }
+}
+.ecstore-format-diagram {
+  width: 1800px;
+  height: 1000px;
+  grid-template-columns: 430px 520px 520px;
+  gap: 54px;
+  padding: 86px 72px 104px;
+}
+.runtime-flow {
+  display: grid;
+  grid-template-rows: auto auto auto 1fr;
+  gap: 26px;
+}
+.pool-flow {
+  display: grid;
+  grid-template-rows: auto auto auto auto;
+  gap: 24px;
+}
+.first-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+.format-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+.format-list .dg-node {
+  min-height: 70px;
+  font-size: 17px;
+  padding: 12px 10px;
+}
+.format-list .dg-node small {
+  font-size: 14px;
+}
+.note-left {
+  left: 96px;
+  bottom: 42px;
+  max-width: 760px;
+}
+.note-right {
+  right: 96px;
+  bottom: 42px;
+  max-width: 780px;
+}
+@property --tw-border-style {
+  syntax: "*";
+  inherits: false;
+  initial-value: solid;
+}
+@property --tw-font-weight {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-leading {
+  syntax: "*";
+  inherits: false;
+}
+@layer properties {
+  @supports ((-webkit-hyphens: none) and (not (margin-trim: inline))) or ((-moz-orient: inline) and (not (color:rgb(from red r g b)))) {
+    *, ::before, ::after, ::backdrop {
+      --tw-border-style: solid;
+      --tw-font-weight: initial;
+      --tw-leading: initial;
+    }
+  }
+}
+
+</style>
+  </head>
+  <body>
+    <main
+      class="dg-canvas ecstore-format-diagram"
+      data-diagram-root
+      data-width="1800"
+      data-height="1000"
+      aria-label="RustFS ECStore initialization flow where pool0 writes format.json first and pool1 reuses the deployment id"
+    >
+      <section class="dg-zone dg-zone-blue runtime-flow" data-title="ECStore::new()">
+        <div class="dg-node dg-node-blue">endpoint_pools<small>2 pools from RUSTFS_VOLUMES</small></div>
+        <div class="dg-node dg-node-blue">for pool in endpoint_pools<small>pool order is stable</small></div>
+        <div class="dg-node dg-node-gray">deployment_id = None<small>before pool 0 succeeds</small></div>
+        <div class="dg-node dg-node-gray">deployment_id = Some(fm.id)<small>after pool 0 format quorum</small></div>
+      </section>
+
+      <section class="dg-zone dg-zone-green pool-flow" data-title="pool 0: node1..node4">
+        <div class="first-row">
+          <div class="dg-node dg-node-green">node1<small>first endpoint</small></div>
+          <div class="dg-node dg-node-gray">node2..node4<small>retry when NotFirstDisk</small></div>
+        </div>
+        <div class="dg-node dg-node-blue">connect_load_init_formats()<small>first_disk = true on node1</small></div>
+        <div class="dg-node dg-node-yellow">init_format_erasure()<small>FormatV3::new() creates fm.id</small></div>
+        <div class="format-list">
+          <div class="dg-node dg-node-yellow">node1 /data1<small>LocalDisk::write_all</small></div>
+          <div class="dg-node dg-node-yellow">node1 /data2<small>LocalDisk::write_all</small></div>
+          <div class="dg-node dg-node-yellow">node2 /data1</div>
+          <div class="dg-node dg-node-yellow">node2 /data2</div>
+          <div class="dg-node dg-node-yellow">node3 /data1</div>
+          <div class="dg-node dg-node-yellow">node3 /data2</div>
+          <div class="dg-node dg-node-yellow">node4 /data1</div>
+          <div class="dg-node dg-node-yellow">node4 /data2<small>RemoteDisk RPC path</small></div>
+        </div>
+      </section>
+
+      <section class="dg-zone dg-zone-yellow pool-flow" data-title="pool 1: node5..node8">
+        <div class="first-row">
+          <div class="dg-node dg-node-green">node5<small>first endpoint</small></div>
+          <div class="dg-node dg-node-gray">node6..node8<small>same retry rule</small></div>
+        </div>
+        <div class="dg-node dg-node-blue">connect_load_init_formats()<small>deployment_id already Some(...)</small></div>
+        <div class="dg-node dg-node-yellow">init_format_erasure()<small>newfm.id = deployment_id</small></div>
+        <div class="format-list">
+          <div class="dg-node dg-node-yellow">node5 /data1</div>
+          <div class="dg-node dg-node-yellow">node5 /data2</div>
+          <div class="dg-node dg-node-yellow">node6 /data1</div>
+          <div class="dg-node dg-node-yellow">node6 /data2</div>
+          <div class="dg-node dg-node-yellow">node7 /data1</div>
+          <div class="dg-node dg-node-yellow">node7 /data2</div>
+          <div class="dg-node dg-node-yellow">node8 /data1</div>
+          <div class="dg-node dg-node-yellow">node8 /data2<small>same deployment id</small></div>
+        </div>
+      </section>
+
+      <svg class="dg-arrows" viewBox="0 0 1800 1000" aria-hidden="true">
+        <defs>
+          <marker id="arrow-head" viewBox="0 0 14 14" refX="12" refY="7" markerWidth="14" markerHeight="14" orient="auto">
+            <path d="M 2 2 L 12 7 L 2 12 Z" fill="#2563eb" />
+          </marker>
+          <marker id="arrow-head-muted" viewBox="0 0 14 14" refX="12" refY="7" markerWidth="14" markerHeight="14" orient="auto">
+            <path d="M 2 2 L 12 7 L 2 12 Z" fill="#64748b" />
+          </marker>
+        </defs>
+        <path d="M 455 356 H 556" fill="none" stroke="#2563eb" stroke-width="4" marker-end="url(#arrow-head)" />
+        <path d="M 812 326 V 385" fill="none" stroke="#2563eb" stroke-width="4" marker-end="url(#arrow-head)" />
+        <path d="M 812 505 V 570" fill="none" stroke="#2563eb" stroke-width="4" marker-end="url(#arrow-head)" />
+        <path d="M 1034 624 C 1090 624 1112 548 1168 548 H 1210" fill="none" stroke="#64748b" stroke-width="3" stroke-dasharray="12 10" marker-end="url(#arrow-head-muted)" />
+        <path d="M 455 606 C 688 848 1030 848 1280 325" fill="none" stroke="#2563eb" stroke-width="4" marker-end="url(#arrow-head)" />
+        <path d="M 1480 326 V 385" fill="none" stroke="#2563eb" stroke-width="4" marker-end="url(#arrow-head)" />
+        <path d="M 1480 505 V 570" fill="none" stroke="#2563eb" stroke-width="4" marker-end="url(#arrow-head)" />
+      </svg>
+
+      <div class="dg-step" style="left: 480px; top: 335px">1</div>
+      <div class="dg-step" style="left: 792px; top: 348px">2</div>
+      <div class="dg-step" style="left: 792px; top: 526px">3</div>
+      <div class="dg-step" style="left: 908px; top: 818px">4</div>
+      <div class="dg-step" style="left: 1460px; top: 348px">5</div>
+      <div class="dg-step" style="left: 1460px; top: 526px">6</div>
+
+      <p class="dg-note note-left">format id is persisted in per-disk <code>.rustfs.sys/format.json</code>; it is not broadcast as a separate cluster-control message.</p>
+      <p class="dg-note note-right">pool1 first node still creates pool1 disk UUIDs, but <code>newfm.id</code> is overwritten by the deployment id already read from pool0.</p>
+    </main>
+  </body>
+</html>

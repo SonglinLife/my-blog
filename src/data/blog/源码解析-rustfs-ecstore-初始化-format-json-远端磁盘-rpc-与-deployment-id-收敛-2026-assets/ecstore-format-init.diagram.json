@@ -1,0 +1,187 @@
+{
+  "title": "RustFS ECStore format initialization",
+  "width": 1800,
+  "height": 1000,
+  "background": "#fbfbf7",
+  "accent": "#2563eb",
+  "zones": [
+    {
+      "id": "runtime",
+      "label": "ECStore::new runtime loop",
+      "x": 70,
+      "y": 110,
+      "w": 470,
+      "h": 690,
+      "tone": "blue"
+    },
+    {
+      "id": "pool0",
+      "label": "pool 0: node1..node4 / data1..data2",
+      "x": 620,
+      "y": 110,
+      "w": 500,
+      "h": 690,
+      "tone": "green"
+    },
+    {
+      "id": "pool1",
+      "label": "pool 1: node5..node8 / data1..data2",
+      "x": 1220,
+      "y": 110,
+      "w": 500,
+      "h": 690,
+      "tone": "yellow"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "loop",
+      "label": "for pool in\nendpoint_pools",
+      "x": 150,
+      "y": 210,
+      "w": 300,
+      "h": 120,
+      "tone": "blue"
+    },
+    {
+      "id": "dep-none",
+      "label": "deployment_id\nstarts as None",
+      "x": 150,
+      "y": 410,
+      "w": 300,
+      "h": 105,
+      "tone": "white"
+    },
+    {
+      "id": "dep-some",
+      "label": "after pool 0\nSome(fm.id)",
+      "x": 150,
+      "y": 610,
+      "w": 300,
+      "h": 105,
+      "tone": "white"
+    },
+    {
+      "id": "node1",
+      "label": "node1\npool0 first endpoint",
+      "x": 690,
+      "y": 205,
+      "w": 360,
+      "h": 120,
+      "tone": "green"
+    },
+    {
+      "id": "pool0-format",
+      "label": "init_format_erasure()\nFormatV3::new()\nformat.json x 8",
+      "x": 690,
+      "y": 430,
+      "w": 360,
+      "h": 145,
+      "tone": "yellow"
+    },
+    {
+      "id": "retry",
+      "label": "other nodes\nNotFirstDisk -> retry",
+      "x": 690,
+      "y": 650,
+      "w": 360,
+      "h": 105,
+      "tone": "gray"
+    },
+    {
+      "id": "node5",
+      "label": "node5\npool1 first endpoint",
+      "x": 1290,
+      "y": 205,
+      "w": 360,
+      "h": 120,
+      "tone": "green"
+    },
+    {
+      "id": "pool1-format",
+      "label": "init_format_erasure()\nnew disk UUIDs\nid overwritten by deployment_id",
+      "x": 1290,
+      "y": 430,
+      "w": 360,
+      "h": 145,
+      "tone": "yellow"
+    },
+    {
+      "id": "same-id",
+      "label": "same deployment id\nacross both pools",
+      "x": 1290,
+      "y": 650,
+      "w": 360,
+      "h": 105,
+      "tone": "white"
+    }
+  ],
+  "arrows": [
+    {
+      "from": "dep-none",
+      "to": "node1",
+      "step": 1
+    },
+    {
+      "from": "node1",
+      "to": "pool0-format",
+      "step": 2
+    },
+    {
+      "from": "pool0-format",
+      "to": "dep-some",
+      "step": 3
+    },
+    {
+      "from": "dep-some",
+      "to": "node5",
+      "points": [
+        { "x": 540, "y": 790 },
+        { "x": 1180, "y": 790 },
+        { "x": 1180, "y": 285 }
+      ],
+      "stepAt": {
+        "x": 660,
+        "y": 790
+      },
+      "step": 4
+    },
+    {
+      "from": "node5",
+      "to": "pool1-format",
+      "step": 5
+    },
+    {
+      "from": "pool1-format",
+      "to": "same-id",
+      "step": 6
+    },
+    {
+      "from": "retry",
+      "to": "pool0-format",
+      "dashed": true
+    }
+  ],
+  "notes": [
+    {
+      "text": "The deployment id is not broadcast as a separate control message. It is persisted in per-disk .rustfs.sys/format.json and later loaded by quorum reads.",
+      "x": 95,
+      "y": 850,
+      "w": 760
+    },
+    {
+      "text": "In the observed Docker cluster, each pool has one 8-drive set; the two pools share one deployment id but have different per-disk this UUID values.",
+      "x": 935,
+      "y": 850,
+      "w": 760
+    }
+  ],
+  "legend": {
+    "items": [
+      { "tone": "blue", "label": "runtime control" },
+      { "tone": "green", "label": "first endpoint node" },
+      { "tone": "yellow", "label": "persistent format.json" },
+      { "tone": "gray", "label": "retry path" }
+    ]
+  }
+}
