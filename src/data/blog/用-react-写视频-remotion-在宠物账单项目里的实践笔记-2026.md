@@ -15,7 +15,15 @@ draft: false
 
 本文不是 Remotion 教程，而是我在做一个具体项目（宠物医院账单拆解）时，把这套工具拆开来用的笔记：哪些模式我留下来了、哪些被我重写了、以及为什么当一段视频本质上是「数据展示」时，Remotion 比剪辑软件更顺手。
 
-项目代码已经独立成 `pet-bill-video/`，本文涉及的所有源码都来自这个仓库：1920×1080 横版、30fps、Remotion 4.0.485、React 19。
+项目代码已经独立成 `pet-bill-video/`，本文涉及的所有源码都来自这个仓库：1080×1920 竖版（短视频 / 抖音尺寸）、30fps、Remotion 4.0.485、React 19。
+
+先看一段 31 秒的整片渲染成品，感受一下「数据视频用 React 写」长什么样：
+
+![Scene01-Contrast 开场对比：¥5,000 vs ¥300](https://img.f3dlife.com/blog/2026/07/07/scene01-contrast-5000-vs-300-26a538f6-5947-46ca-86f9-2ce8ed78b189.png)
+Fig. 整片开场的 Scene01-Contrast：左 5,000 滚 2.5 秒，右 300 滚 0.9 秒，「时间差」就是这段视频的第一句叙事。
+
+![Scene02-Photo 真实院景过场：Ken Burns 缓推 + 暗蒙版](https://img.f3dlife.com/blog/2026/07/07/scene02-photo-kenburns-lobby-94cb33a5-968b-4822-83ca-ad4decefa91d.png)
+Fig. Scene02-Photo：唯一有真实照片的场景，下半区被底部渐变压到接近全黑，保证标题字永远落在深色上。
 
 ## 目录
 
@@ -123,6 +131,9 @@ const total = ITEMS.reduce((sum, item) => {
 
 每行入场动画只有三件事：`opacity: 0 → 1`、`translateY: 20px → 0`、虚线分隔线。这三件事全部塞进一个 6 行的子组件 `<Row />` 里。合计那里再叠一个会计式双划线（`borderBottom: "6px double rgba(255,213,60,0.65)"`），整张收据就有了「真账单」的味道。
 
+![Scene03-Bill 初诊账单逐行浮现](https://img.f3dlife.com/blog/2026/07/07/scene03-bill-receipt-rows-3d47d983-57b7-447b-8770-5b754dee5363.png)
+Fig. Scene03-Bill 渲染静帧：当前亮行（药品 + 耗材 ¥1,100）用黄色 + 会计双划线表示「正在念到这一项」，上方已经播完的行降成灰色、合计从 100 累加到 5,000。
+
 这种写法的好处是：**每一行出现时机就是一个数字**，跟配音脚本里「念到哪句亮哪行」一一对应。改配音稿的时候，不需要碰任何视觉代码，只改 `ITEMS[].at` 这一个数组。
 
 Scene04 成本条是同一种模式，但用了 `spring` 而不是 `interpolate`：
@@ -138,6 +149,9 @@ return <div style={{ width: `${seg.pct * grow}%`, backgroundColor: seg.color, he
 ```
 
 `interpolate` 是线性 / 缓动映射，适合「数字滚动」「位移」。`spring` 是带物理弹簧的动画，适合「生长」「弹出」。Scene04 的成本条 5 段依次长出，用 `damping: 200` 故意压成「几乎不弹」，配合财经纪录片的克制感。
+
+![Scene04-CostBar 成本结构条](https://img.f3dlife.com/blog/2026/07/07/scene04-cost-bar-spring-ac0dd234-90e9-473c-99ed-464c1a8ff732.png)
+Fig. Scene04-CostBar 渲染静帧：5 段灰阶成本 + 末端黄色净利 8%；图例两栏，每段占比通过 CountUp 滚到目标值。`damping: 200` 让条形像「被慢慢推出来」而不是「啪一下弹出」。
 
 ## 4 组件层：把动效做成可复用原语
 
@@ -245,6 +259,11 @@ npm run dev
 
 打开浏览器，左侧是所有 Composition 列表，点哪个就预览哪个。中间是渲染画布，下方是时间轴 / 当前帧 / FPS / 缩放比。右侧是 props 面板（如果 Composition 接了 props）。
 
+下面这段是 `FullVideo` 整片渲染导出的 mp4，31 秒覆盖 6 个场景，可以直接播放感受 Studio 之外的最终输出：
+
+<video controls preload="metadata" src="https://img.f3dlife.com/blog/2026/07/07/preview-31s-8c292b5e-78b8-4363-81d6-7bd354e17b57.mp4" style="width: 100%; max-width: 480px; display: block; margin: 0 auto;"></video>
+Fig. 整片 31 秒预览，由 `npx remotion render FullVideo out/v2_preview.mp4` 渲染。配音轨是空的，所有数字、对比、节奏都在画面里。
+
 它能做到几件剪辑软件做不到的事：
 
 - **改 `DURATIONS.contrast` 从 180 → 150，全片时长同步更新**，不用重排其他场景的入点。
@@ -295,6 +314,9 @@ Remotion 不是万能的。几个我用下来觉得要小心的边界：
 
 **数字必须等宽**。如果一个画面里有「5,000」「500」「300」同时出现，没开 `tabular-nums`，宽度会跳。Scene01 的双数字滚动靠 `tabular-nums` 才能稳。同理 ¥、% 这类符号的尺寸不能和数据数字一样大，否则视觉重心会偏。
 
+![Scene05-Strike 同药不同价](https://img.f3dlife.com/blog/2026/07/07/scene05-strike-480-vs-180-f713842e-ff03-4c7c-aa40-8e786b51b981.png)
+Fig. Scene05-Strike 渲染静帧：左右两个 ¥ 符号都缩到 0.48em、降透明度，数字是绝对视觉中心；下方「差的 ¥300」黄色双划线 0.5 秒内从 0 长到 100%。
+
 **「帧」这个单位会泄漏到所有协作场景**。配音员用秒、剪辑师用秒、Remotion 用帧。任何一次协作都要多一道「秒 → 帧」的换算。把所有 `delay / at` 集中放在文件顶部的常量数组里，至少让换算只发生一次。
 
 **数据驱动动画的诱惑**。React 的 props 化很诱人，会让人想把「账单项」「成本占比」做成 JSON 配置文件 + 动态加载。我没这么做，原因有两个：① 这条视频的数据是固定的，没必要为它做一套配置加载层；② 配音节奏和数据是绑死的，配音定稿后改一项就要同步改 `at`，拆出去反而麻烦。
@@ -311,6 +333,9 @@ Remotion 不是万能的。几个我用下来觉得要小心的边界：
 Remotion 不适合做剧情片、广告片、转场密集的剪辑作品。它适合「数据 + 节奏 + 排版」型视频——财经讲解、教学演示、产品 demo、数据可视化短片。如果你的视频本质上是「把几张图表讲清楚」，Remotion 比剪辑软件更接近问题本身。
 
 整个项目代码在 `pet-bill-video/` 下，6 个 Composition + 1 个 FullVideo，加起来不到 800 行 TSX。任何 React 项目都可以原地迁入，不引入额外运行时复杂度。
+
+![Scene06-Close 收口：钱没有消失](https://img.f3dlife.com/blog/2026/07/07/scene06-close-钱没有消失-0394214d-9a20-4b27-b155-c73228fdb05e.png)
+Fig. Scene06-Close 渲染静帧：收口两行主张分步淡入，「钱没有消失」白色 + 「只是换了地方」黄色，是整片唯一一处连续两行同一字号的标题——它靠配色对比承担收束的视觉重量，不靠字号。
 
 ## 参考资料
 
