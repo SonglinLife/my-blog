@@ -8,10 +8,11 @@
     <style data-diagram-css>
       .example-diagram {
         width: 1800px;
-        height: 1000px;
+        height: 1080px;
         grid-template-columns: 420px 430px 1fr;
-        gap: 48px;
-        padding: 84px 72px 96px;
+        grid-template-rows: 1fr auto;
+        gap: 40px 48px;
+        padding: 72px 72px 56px;
       }
 
       .topology {
@@ -20,10 +21,23 @@
         gap: 34px;
       }
 
+      .pool-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 24px;
+      }
+
       .matrix {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 24px;
+      }
+
+      .footer-row {
+        grid-column: 1 / -1;
+        display: flex;
+        gap: 32px;
+        align-items: flex-start;
       }
     </style>
   </head>
@@ -32,23 +46,23 @@
       class="dg-canvas example-diagram"
       data-diagram-root
       data-width="1800"
-      data-height="1000"
+      data-height="1080"
       aria-label="Replace this with a concrete description of the diagram"
     >
       <section class="dg-zone dg-zone-blue dg-stack" data-title="Startup path">
-        <div class="dg-node dg-node-blue">entry()<small>parse config</small></div>
-        <div class="dg-node dg-node-blue">run(config)<small>orchestration</small></div>
-        <div class="dg-node dg-node-blue">init_storage()<small>volumes to pools</small></div>
+        <div id="entry" class="dg-node dg-node-blue">entry()<small>parse config</small></div>
+        <div id="run" class="dg-node dg-node-blue">run(config)<small>orchestration</small></div>
+        <div id="init-storage" class="dg-node dg-node-blue">init_storage()<small>volumes to pools</small></div>
       </section>
 
       <section class="dg-zone dg-zone-green dg-stack" data-title="Runtime state">
-        <div class="dg-node dg-node-green">ServerOpts.volumes<small>exact source label</small></div>
-        <div class="dg-node dg-node-green">DisksLayout<small>derived state</small></div>
-        <div class="dg-node dg-node-green">EndpointServerPools<small>shared topology view</small></div>
+        <div id="volumes" class="dg-node dg-node-green">ServerOpts.volumes<small>exact source label</small></div>
+        <div id="layout" class="dg-node dg-node-green">DisksLayout<small>derived state</small></div>
+        <div id="pools" class="dg-node dg-node-green">EndpointServerPools<small>shared topology view</small></div>
       </section>
 
       <section class="dg-zone dg-zone-yellow topology" data-title="Observed topology">
-        <div class="dg-node dg-node-yellow dg-node-wide">
+        <div id="env" class="dg-node dg-node-yellow dg-node-wide">
           RUSTFS_VOLUMES
           <small>node{1...4}:9000/data{1...2} node{5...8}:9000/data{1...2}</small>
         </div>
@@ -75,23 +89,21 @@
           </div>
         </div>
 
-        <div class="dg-node dg-node-orange dg-node-wide">SetupType::DistErasure<small>STANDARD: EC 4+4</small></div>
+        <div id="setup-type" class="dg-node dg-node-orange dg-node-wide">SetupType::DistErasure<small>STANDARD: EC 4+4</small></div>
       </section>
 
-      <svg class="dg-arrows" viewBox="0 0 1800 1000" aria-hidden="true">
-        <defs>
-          <marker id="arrow-head" viewBox="0 0 14 14" refX="12" refY="7" markerWidth="14" markerHeight="14" orient="auto">
-            <path d="M 2 2 L 12 7 L 2 12 Z" fill="#2563eb" />
-          </marker>
-        </defs>
-        <path d="M 475 498 H 540" fill="none" stroke="#2563eb" stroke-width="3" marker-end="url(#arrow-head)" />
-        <path d="M 965 498 H 1040" fill="none" stroke="#2563eb" stroke-width="3" marker-end="url(#arrow-head)" />
-      </svg>
+      <!--
+        Arrows are declared, not drawn. The build/export pipeline routes them
+        from real element positions, so never hand-write SVG paths or pixel
+        coordinates here. data-step merges the step number into the label chip.
+      -->
+      <div class="dg-arrow" data-from="init-storage" data-to="layout" data-label="read volumes" data-step="1"></div>
+      <!-- In dense areas keep the chip to a bare step number and explain it in the caption. -->
+      <div class="dg-arrow" data-from="pools" data-to="env" data-step="2"></div>
 
-      <div class="dg-step" style="left: 492px; top: 477px">1</div>
-      <div class="dg-step" style="left: 982px; top: 477px">2</div>
-
-      <p class="dg-note" style="left: 72px; bottom: 42px; max-width: 980px">Replace this note with a verified invariant, caveat, or reading guide. Remove it if it does not add evidence value.</p>
+      <div class="footer-row">
+        <p class="dg-note dg-note-flow">Replace this note with a verified invariant, caveat, or reading guide. Remove it if it does not add evidence value.</p>
+      </div>
     </main>
   </body>
 </html>

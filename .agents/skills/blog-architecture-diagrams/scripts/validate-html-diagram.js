@@ -58,8 +58,46 @@ for (const file of files) {
     issue("warn", "no .node class found; concrete components may be missing");
   }
 
-  if (!/<svg\b[^>]*class=["'][^"']*\barrows\b/i.test(source) && /class=["'][^"']*\bstep\b/i.test(source)) {
-    issue("warn", "step markers exist but no .arrows SVG overlay was found");
+  // Anchored-arrow declarations: data-from/data-to must reference real ids.
+  const ids = new Set();
+  for (const match of source.matchAll(/\bid=["']([^"']+)["']/gi)) ids.add(match[1]);
+  const arrowSpecs = Array.from(source.matchAll(/<[^>]*\bclass=["'][^"']*\bdg-arrow\b[^"']*["'][^>]*>/gi));
+  for (const [tag] of arrowSpecs) {
+    const from = tag.match(/\bdata-from=["']([^"']+)["']/i)?.[1];
+    const to = tag.match(/\bdata-to=["']([^"']+)["']/i)?.[1];
+    if (!from || !to) {
+      issue("error", "dg-arrow declaration is missing data-from or data-to");
+      continue;
+    }
+    for (const ref of [from, to]) {
+      if (!ids.has(ref)) issue("error", `dg-arrow references unknown element id: ${ref}`);
+    }
+  }
+
+  const handWrittenArrowSvg = /<svg\b[^>]*class=["'][^"']*\b(?:dg-)?arrows\b[^"']*["'][^>]*>[\s\S]*?<path/i.test(source);
+  if (handWrittenArrowSvg) {
+    issue(
+      "warn",
+      "hand-written SVG arrow paths found; prefer anchored <div class=\"dg-arrow\" data-from data-to> declarations so routes come from real element positions"
+    );
+  }
+  if (!arrowSpecs.length && !handWrittenArrowSvg && /class=["'][^"']*\bdg-step\b/i.test(source)) {
+    issue("warn", "step markers exist but no arrows (dg-arrow declarations or SVG overlay) were found");
+  }
+
+  const stepCount =
+    (source.match(/\bdata-step=["']/gi) || []).length +
+    (source.match(/class=["'][^"']*\bdg-step\b/gi) || []).length;
+  if (stepCount > 7) {
+    issue("warn", `${stepCount} numbered steps; readers rarely follow more than 7 - split phases or split the diagram`);
+  }
+
+  const absoluteSteps = (source.match(/class=["'][^"']*\bdg-step\b[^"']*["'][^>]*\bstyle=["'][^"']*left\s*:/gi) || []).length;
+  if (absoluteSteps) {
+    issue(
+      "warn",
+      `${absoluteSteps} step circle(s) positioned with hand-written pixel coordinates; prefer data-step on a dg-arrow declaration`
+    );
   }
 
   for (const match of source.matchAll(/\b(?:src|href)=["']([^"']+)["']/gi)) {

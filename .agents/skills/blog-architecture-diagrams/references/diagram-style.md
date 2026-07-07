@@ -49,16 +49,15 @@ Before rendering, reserve arrow lanes:
 Rules:
 
 - Keep primary flow arrows short and mostly left-to-right or top-to-bottom.
-- Use rounded orthogonal segments when a direct diagonal would cross labels.
-- Route long arrows around zones or through whitespace gaps, not through component text.
+- In the HTML/CSS workflow, declare arrows (`data-from`/`data-to`) and let the router produce rounded orthogonal paths; never hand-write coordinates.
 - Use small arrowheads. Huge heads imply emphasis and can hide the real target.
-- Put labels in whitespace next to the arrow. If a label needs a background, keep it small and do not let it sit on top of a busy junction.
-- Put step circles on or immediately beside the segment start or a bend, not centered on a node border.
+- Labels live in whitespace next to the arrow, with the step number inside the label chip. At most 7 steps per diagram; in dense areas use a bare step chip and explain it in the caption.
 - Dashed arrows are secondary. Make them thinner or gray unless the failure/recovery path is the main subject.
 - Do not chain sibling conclusions with arrows. A capacity formula, a tolerance rule, and an operational caveat can be visually grouped, but an arrow between them should mean a real state/control/data transition.
-- Do not default to Bezier curves to fix awkward routing. First fix lanes, node placement, start/end gaps, and bend radius. Curves are acceptable only when their geometry is still easy to validate and maintain.
+- Do not reach for Bezier curves to fix awkward routing. First fix lanes, node placement, and `data-mid`/`data-lane`. If a route still fights the layout, the layout is wrong.
+- When an arrow would have to span more than two zones, duplicate the information instead: place a small badge/node in the target zone (e.g. `deployment_id ← pool 0`) and reference it in prose or with a short muted arrow. A canvas-crossing line is almost always the worse diagram.
 
-If an arrow must cross a zone, it should cross empty space inside that zone. If it crosses a node label, the diagram needs a different lane or a different layout.
+If an arrow must cross a zone, it should cross empty space inside that zone. If it crosses a node label, the geometry audit will reject the export — change the lane or the layout, not the audit.
 
 ## Color Vocabulary
 

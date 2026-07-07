@@ -9,7 +9,7 @@ Use HTML/CSS for diagrams that are mostly layout, grouping, labels, repeated nod
 - CSS Grid for columns, layers, pool/node matrices, before/after panels, and fixed canvas structure.
 - Flexbox for rows of processes, disks, shards, events, or state chips.
 - CSS custom properties for color tokens, spacing, borders, and typography.
-- Inline SVG overlays for arrows, brackets, routes, and small topology connectors.
+- Declarative anchored arrows (`.dg-arrow` with `data-from`/`data-to`) routed from real element positions at export time.
 - `data-*` attributes and semantic class names so future edits can target the right component.
 - Use the local Tailwind-backed diagram kit in `assets/diagram-kit.css` by default. It provides stable `dg-*` component classes while keeping the final built file self-contained. Never depend on CDN styles.
 
@@ -29,8 +29,9 @@ Use a single editable HTML source that links to the local diagram kit. The expor
 - `<main class="diagram" data-diagram-root ...>` as the fixed canvas root.
 - `aria-label` describing the diagram.
 - `dg-*` component classes for common visual vocabulary.
-- Small `data-diagram-css` blocks only for diagram-specific grid tracks, dimensions, and arrow coordinates.
-- Short comments only for complex arrow overlays or repeated topology sections.
+- `id`s on arrow endpoints plus `.dg-arrow` declarations (see Arrow Rules) — no SVG paths, no pixel coordinates.
+- Small `data-diagram-css` blocks only for diagram-specific grid tracks and dimensions.
+- Short comments only for repeated topology sections or non-obvious arrow declarations.
 - No remote scripts, CDN CSS, web fonts, or private local paths.
 
 ## Template
@@ -38,7 +39,7 @@ Use a single editable HTML source that links to the local diagram kit. The expor
 Start from:
 
 ```bash
-cp .codex/skills/blog-architecture-diagrams/assets/html-diagram-template.html \
+cp .agents/skills/blog-architecture-diagrams/assets/html-diagram-template.html \
   src/data/blog/<slug>-assets/<name>.diagram.html
 ```
 
@@ -72,15 +73,36 @@ Prefer `box-sizing: border-box`, fixed canvas dimensions, and explicit row/colum
 
 ## Arrow Rules
 
-Use inline SVG for arrows because it is still the most reliable way to draw routed connectors on top of a DOM layout. Keep all arrow labels in HTML nodes when possible; use SVG text only for short route labels that are easier to position with the path.
+Arrows are declared, not drawn. Give every arrow endpoint an `id` and add one declaration per arrow anywhere inside the canvas root:
 
-Requirements:
+```html
+<div class="dg-arrow" data-from="init-storage" data-to="layout" data-label="read volumes" data-step="1"></div>
+```
 
-- Define arrow lanes before drawing.
-- Keep routes orthogonal or gently curved.
-- Do not cross component text.
-- Put `.step` circles on or very near the path.
-- Use dashed gray routes only for secondary/indirect relationships.
+At build/export time a runtime measures the real rendered boxes with `getBoundingClientRect()`, routes a rounded orthogonal path between the two elements, renders a slim-headed SVG overlay, and places the label chip (with the step number merged into it) in collision-free whitespace. The exported `.built.html` contains the baked static SVG; no coordinates ever live in the source.
+
+Attribute reference:
+
+```text
+data-from / data-to     required element ids
+data-route              h | v | auto (default)
+data-exit / data-enter  left|right|top|bottom edge override
+data-exit-at/-enter-at  0..1 position along that edge (default 0.5)
+data-mid                0..1 position of the middle segment (default 0.5)
+data-lane               px offset for the middle segment (parallel arrows)
+data-tone               "muted" = dashed gray secondary route
+data-label              label chip text
+data-step               step number, rendered inside the chip
+data-label-at           0..1 label anchor along the path (default 0.5)
+```
+
+Rules:
+
+- Never hand-write SVG paths or absolutely-positioned `.dg-step` circles; the geometry audit flags them and they rot as soon as layout shifts.
+- At most 7 numbered steps per diagram.
+- In dense areas, use a bare step chip (`data-step` without `data-label`) and explain the step in the caption.
+- When an arrow would span more than two zones, duplicate the information instead: put a small badge in the target zone and reference it in prose or with a short muted arrow.
+- Use `data-tone="muted"` only for secondary/indirect relationships defined in the caption.
 - Never connect sibling conclusions with arrows.
 
 ## Export
@@ -88,14 +110,13 @@ Requirements:
 First validate:
 
 ```bash
-node .codex/skills/blog-architecture-diagrams/scripts/validate-html-diagram.js \
-  src/data/blog/<slug>-assets/<name>.diagram.html
+npm run diagram:html:check -- src/data/blog/<slug>-assets/<name>.diagram.html
 ```
 
 Build explicitly when needed:
 
 ```bash
-node .codex/skills/blog-architecture-diagrams/scripts/build-html-diagram.js \
+npm run diagram:html:build -- \
   src/data/blog/<slug>-assets/<name>.diagram.html \
   src/data/blog/<slug>-assets/<name>.built.html
 ```
@@ -103,12 +124,14 @@ node .codex/skills/blog-architecture-diagrams/scripts/build-html-diagram.js \
 Then export when a local browser is available:
 
 ```bash
-node .codex/skills/blog-architecture-diagrams/scripts/export-html-diagram.js \
+npm run diagram:html:export -- \
   src/data/blog/<slug>-assets/<name>.diagram.html \
   src/data/blog/<slug>-assets/<name>.png
 ```
 
-The export script builds `.built.html` automatically, then looks for Chrome/Chromium. If no browser exists, open the built HTML manually and capture the fixed-size `dg-canvas`. Do not commit browser cache, temporary screenshots, or generated files outside the post assets folder.
+The export script builds `.built.html` automatically, runs the arrow runtime in headless Chrome, bakes the computed arrows into the built file, and runs a geometry audit before taking the screenshot. Audit errors (arrow through text, chip on a node, out-of-bounds route, step circle on a label) block the export; fix the source rather than reaching for `--force`. If no browser exists, open the built HTML manually — arrows render live from the declarations — and capture the fixed-size `dg-canvas`. Do not commit browser cache, temporary screenshots, or generated files outside the post assets folder.
+
+After every export, open the PNG (image Read) and verify each label is fully readable before embedding it.
 
 ## Review Checklist
 

@@ -170,7 +170,7 @@ Never ask an image model for a generic "beautiful technology illustration". For 
 
 ### Project Diagram Skill
 
-When an AI agent needs to create or revise a serious architecture/workflow/topology/state-change diagram, use the project skill at `.codex/skills/blog-architecture-diagrams/`.
+When an AI agent needs to create or revise a serious architecture/workflow/topology/state-change diagram, use the project skill at `.agents/skills/blog-architecture-diagrams/` (also reachable via the `.claude/skills/` and `.codex/skills/` symlinks, so it works in Claude Code, Codex, and other agents).
 
 That skill provides a JSON-to-SVG renderer:
 

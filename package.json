@@ -17,8 +17,11 @@
     "post:images": "node scripts/upload-post-images.js",
     "post:publish": "node scripts/publish-post.js",
     "post:release": "node scripts/release-post.js",
-    "diagram:check": "node .codex/skills/blog-architecture-diagrams/scripts/validate-architecture-diagram.js",
-    "diagram:render": "node .codex/skills/blog-architecture-diagrams/scripts/render-architecture-svg.js",
+    "diagram:check": "node .agents/skills/blog-architecture-diagrams/scripts/validate-architecture-diagram.js",
+    "diagram:render": "node .agents/skills/blog-architecture-diagrams/scripts/render-architecture-svg.js",
+    "diagram:html:check": "node .agents/skills/blog-architecture-diagrams/scripts/validate-html-diagram.js",
+    "diagram:html:build": "node .agents/skills/blog-architecture-diagrams/scripts/build-html-diagram.js",
+    "diagram:html:export": "node .agents/skills/blog-architecture-diagrams/scripts/export-html-diagram.js",
     "hooks:install": "sh scripts/install-git-hooks.sh"
   },
   "dependencies": {

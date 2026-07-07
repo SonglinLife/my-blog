@@ -1,9 +1,13 @@
 ---
 name: blog-architecture-diagrams
-description: Use when creating or revising technical blog images for this repository, especially architecture diagrams, workflow diagrams, layer diagrams, state-change diagrams, storage topology diagrams, or any image where HTML/CSS, SVG overlays, or Mermaid alternatives are needed for precise layout, grouping, arrows, labels, or mobile readability.
+description: Use when creating or revising technical blog images (作图/画图/配图/架构图/流程图/示意图) for this repository, especially architecture diagrams, workflow diagrams, layer diagrams, state-change diagrams, storage topology diagrams, or any image where HTML/CSS, SVG overlays, or Mermaid alternatives are needed for precise layout, grouping, arrows, labels, or mobile readability.
 ---
 
 # Blog Architecture Diagrams
+
+## Layout And Portability
+
+This skill works with any AI coding agent (Claude Code, Codex, Cursor, and others). The canonical source lives at `.agents/skills/blog-architecture-diagrams/`; `.claude/skills/` and `.codex/skills/` hold symlinks to it so per-agent skill discovery finds the same files. All commands below are `npm run` wrappers defined in the repository root `package.json`, so they work identically from any agent — never reference `.codex/` or `.claude/` paths in commands or docs.
 
 ## Purpose
 
@@ -29,7 +33,7 @@ Keep the repository rules from `AGENTS.md`: do not copy third-party diagrams, do
    - **HTML/CSS diagram page (default)** for most architecture/workflow/topology diagrams. Use `assets/html-diagram-template.html` plus `assets/diagram-kit.css`, keep the source as `<name>.diagram.html`, and export to PNG/SVG for the post.
    - **Programmatic SVG** when deterministic geometry lint is more valuable than CSS layout, or when a small existing `.diagram.json` only needs a narrow edit. Use `scripts/render-architecture-svg.js` with a JSON spec.
    - **Handwritten SVG** only for custom geometry that is simpler as vector paths than DOM layout.
-   - **Terminal screenshot** via `scripts/render-terminal-screenshot.js` when output/logs are the evidence.
+   - **Terminal screenshot** via the repository script `node scripts/render-terminal-screenshot.js` (repo root, not inside this skill) when real command output/logs are the evidence. Never fabricate terminal output or dashboards as a diagram.
    - **Mermaid** only for quick drafts, tiny sequence/flow diagrams, or temporary planning notes. Do not use Mermaid as the final format for complex system maps.
 3. Create or edit sources next to the post assets:
    - preferred: `src/data/blog/<slug>-assets/<name>.diagram.html`
@@ -49,26 +53,37 @@ Keep the repository rules from `AGENTS.md`: do not copy third-party diagrams, do
 Copy the template:
 
 ```bash
-cp .codex/skills/blog-architecture-diagrams/assets/html-diagram-template.html \
+cp .agents/skills/blog-architecture-diagrams/assets/html-diagram-template.html \
   src/data/blog/<slug>-assets/<name>.diagram.html
 ```
 
-Edit the HTML source with real labels and source-backed facts. Use the `dg-*` classes from `assets/diagram-kit.css` for common components. Then validate the source:
+Edit the HTML source with real labels and source-backed facts. Use the `dg-*` classes from `assets/diagram-kit.css` for common components.
 
-```bash
-node .codex/skills/blog-architecture-diagrams/scripts/validate-html-diagram.js \
-  src/data/blog/<slug>-assets/<name>.diagram.html
+**Arrows are declared, never drawn.** Give nodes `id`s and declare each arrow as an element; the pipeline routes it from real rendered positions:
+
+```html
+<div class="dg-arrow" data-from="init-storage" data-to="layout" data-label="read volumes" data-step="1"></div>
 ```
 
-Export with a local browser when available:
+Do not hand-write SVG `<path>` coordinates or absolutely-positioned step circles — that is how arrows end up crossing text. Available attributes: `data-route` (`h`/`v`/auto), `data-exit`/`data-enter` (edge overrides), `data-exit-at`/`data-enter-at` (0..1 along the edge), `data-mid`/`data-lane` (middle-segment position), `data-tone="muted"` (dashed gray secondary), `data-label`, `data-step`, `data-label-at` (0..1 label anchor along the path).
+
+Validate the source:
 
 ```bash
-node .codex/skills/blog-architecture-diagrams/scripts/export-html-diagram.js \
+npm run diagram:html:check -- src/data/blog/<slug>-assets/<name>.diagram.html
+```
+
+Export (requires Chrome/Chromium):
+
+```bash
+npm run diagram:html:export -- \
   src/data/blog/<slug>-assets/<name>.diagram.html \
   src/data/blog/<slug>-assets/<name>.png
 ```
 
-The export script compiles the local Tailwind-backed kit into a self-contained `.built.html` before taking the screenshot. If the machine has no Chrome/Chromium/Playwright-capable browser, run `build-html-diagram.js`, open the generated `.built.html` in a browser, capture/export the fixed-size canvas, then inspect the PNG/SVG before embedding.
+The export pipeline compiles the Tailwind-backed kit, runs the arrow runtime in headless Chrome, bakes the computed arrows into a static self-contained `.built.html`, and **runs a geometry audit**: any arrow crossing node text, any label/step chip overlapping content, or any out-of-bounds route is an error and the PNG is not exported. Fix the source (labels, `data-mid`, `data-label-at`, layout) instead of overriding; `--force` exists only for deliberate exceptions. After a successful export, always open the PNG with an image Read and check every label yourself before embedding.
+
+If the machine has no Chrome/Chromium, run `npm run diagram:html:build -- <diagram.html> <out.built.html>` and open the built file in any browser — arrows render live there — then capture the fixed-size canvas manually.
 
 ## Programmatic SVG Fallback
 
@@ -125,15 +140,13 @@ The validator checks path/node collisions, label overlap, arrow self-crossing, p
   - accent blue: current path or selected step.
 - Use explicit topology: hosts, pods, disks, buckets, object stores, queues, metadata engines, or runtime boundaries should appear as real zones, not generic cards.
 - Put exact labels in the image: function names, CLI names, file paths, resource names, object keys, API calls, state names.
-- Use numbered step circles for flows. Use dashed arrows only when the surrounding prose or caption defines the meaning.
+- Use numbered steps for flows, at most 7 per diagram; beyond that, split phases or split the diagram. Use dashed arrows (`data-tone="muted"`) only when the surrounding prose or caption defines the meaning.
 - Keep arrows quiet and semantic:
-  - route arrows through whitespace corridors, not through component text;
-  - prefer short rounded orthogonal paths with one or two bends;
-  - avoid large triangular heads, long decorative detours, and self-crossing paths;
-  - place labels beside arrows or in reserved whitespace, not directly on top of busy line intersections;
-  - put step circles on or immediately beside the arrow path, near the start of a segment or a bend, and away from labels and node borders;
+  - declare arrows with `data-from`/`data-to`; the router produces short rounded orthogonal paths — if a route looks forced, fix the layout or `data-mid`/`data-lane`, do not fall back to hand-drawn curves;
+  - the step number lives inside the arrow's label chip (`data-step`); in dense areas use a bare step chip (no `data-label`) and explain the step in the caption;
+  - when an arrow would have to span more than two zones, prefer information duplication instead: place a small badge/node in the target zone (e.g. `deployment_id ← pool 0`) with a muted arrow or plain text reference — a canvas-crossing line is almost always worse;
   - never use an arrow to connect parallel conclusions that do not have a real causal/control/data relationship.
-- Use Bezier/freeform curves only as a deliberate custom diagram choice. For SVG fallback diagrams, keep rounded orthogonal routing because it is easier to lint, reproduce, and revise.
+- Bezier/freeform curves are not available in the anchored-arrow model on purpose; for SVG fallback diagrams, keep rounded orthogonal routing because it is easier to lint, reproduce, and revise.
 - Avoid huge titles inside the image, decorative gradients, neon accents, slide-cover composition, fake dashboards, fake terminal output, and copied third-party layout.
 
 ## Quality Gate
@@ -141,7 +154,8 @@ The validator checks path/node collisions, label overlap, arrow self-crossing, p
 Before considering a diagram done:
 
 - source is editable or reproducible;
-- HTML/CSS diagrams pass `validate-html-diagram.js`; programmatic SVG diagrams pass `npm run diagram:check -- <diagram.json>`;
+- HTML/CSS diagrams pass `npm run diagram:html:check -- <diagram.html>` and export with zero geometry-audit errors (no `--force`); programmatic SVG diagrams pass `npm run diagram:check -- <diagram.json>`;
+- the exported PNG was visually inspected (image Read) and every label is fully readable — no chip, arrowhead, or line touches any glyph;
 - every major label is verified;
 - the diagram answers one concrete question;
 - arrows encode real control/data/state direction;
