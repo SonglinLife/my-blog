@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>MaaS scheduling and tiered KV cache</title>
+    <link rel="stylesheet" href="../../../../.agents/skills/blog-architecture-diagrams/assets/diagram-kit.css" data-diagram-kit />
+    <style data-diagram-css>
+      .maas-cache {
+        width: 1800px;
+        height: 1000px;
+        grid-template-columns: 470px 610px 540px;
+        grid-template-rows: 1fr 100px;
+        gap: 42px 50px;
+        padding: 68px 64px 44px;
+      }
+      .scheduler { grid-template-rows: 120px 150px 150px 120px; gap: 42px; }
+      .gpu { grid-template-rows: 120px 150px 150px 120px; gap: 42px; }
+      .storage { grid-template-rows: 120px 150px 150px 120px; gap: 42px; }
+      #rdma { grid-row: 3; }
+      #boundary { grid-row: 4; }
+      .footer-row { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: 34px; }
+    </style>
+  </head>
+  <body>
+    <main class="dg-canvas maas-cache" data-diagram-root data-width="1800" data-height="1000"
+      aria-label="A MaaS scheduler forms continuous batches, sends prefill and decode work to GPU replicas, and manages hot KV in HBM plus warm shared KV on RDMA NVMe storage">
+      <section class="dg-zone dg-zone-blue dg-stack scheduler" data-title="MaaS scheduler">
+        <div id="queue" class="dg-node dg-node-gray">request queue<small>different prompt/output lengths</small></div>
+        <div id="budget" class="dg-node dg-node-blue">admission budget<small>batched tokens + sequences + KV blocks</small></div>
+        <div id="continuous" class="dg-node dg-node-blue">continuous batching<small>decode first, chunked prefill fills gaps</small></div>
+        <div id="slo" class="dg-node dg-node-orange">service objectives<small>TTFT / TPOT / throughput</small></div>
+      </section>
+
+      <section class="dg-zone dg-zone-green dg-stack gpu" data-title="GPU model replica">
+        <div id="prefill-gpu" class="dg-node dg-node-green">prefill batch<small>many prompt tokens in parallel</small></div>
+        <div id="layers" class="dg-node dg-node-green">Transformer layers 1...L<small>each layer owns K/V</small></div>
+        <div id="hbm" class="dg-node dg-node-orange">HBM: active KV cache<small>[L, B, Hkv, T, Dh] x K/V</small></div>
+        <div id="decode-gpu" class="dg-node dg-node-green">decode batch<small>normally one new token per sequence</small></div>
+      </section>
+
+      <section class="dg-zone dg-zone-yellow dg-stack storage" data-title="Shared KV capacity tier">
+        <div id="prefix" class="dg-node dg-node-yellow">prefix cache<small>exact reusable system/tool prefix</small></div>
+        <div id="rdma" class="dg-node dg-node-yellow">RDMA + NVMe/JBOF<small>PD transfer, spill, session resume</small></div>
+        <div id="boundary" class="dg-node dg-node-gray">not an HBM replacement<small>load warm KV before hot decode access</small></div>
+      </section>
+
+      <div class="dg-arrow" data-from="queue" data-to="budget" data-route="v" data-step="1"></div>
+      <div class="dg-arrow" data-from="budget" data-to="continuous" data-route="v" data-step="2"></div>
+      <div class="dg-arrow" data-from="continuous" data-to="slo" data-route="v" data-step="3"></div>
+      <div class="dg-arrow" data-from="prefill-gpu" data-to="layers" data-route="v" data-step="1"></div>
+      <div class="dg-arrow" data-from="layers" data-to="hbm" data-route="v" data-step="2"></div>
+      <div class="dg-arrow" data-from="hbm" data-to="decode-gpu" data-route="v" data-step="3"></div>
+      <div class="dg-arrow" data-from="hbm" data-to="rdma" data-route="h" data-step="4"></div>
+
+      <div class="footer-row">
+        <p class="dg-note dg-note-flow">Batch capacity is a token and KV-memory budget, not a fixed number of users.</p>
+        <p class="dg-note dg-note-flow">Shared storage is valuable when loading cached KV is faster than recomputing the prefix and still meets TTFT.</p>
+      </div>
+    </main>
+  </body>
+</html>

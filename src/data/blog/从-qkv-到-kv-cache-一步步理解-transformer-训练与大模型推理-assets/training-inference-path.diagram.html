@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Transformer training and inference paths</title>
+    <link rel="stylesheet" href="../../../../.agents/skills/blog-architecture-diagrams/assets/diagram-kit.css" data-diagram-kit />
+    <style data-diagram-css>
+      .transformer-path {
+        width: 1800px;
+        height: 1060px;
+        grid-template-columns: 390px 610px 610px;
+        grid-template-rows: 1fr 96px;
+        gap: 42px 52px;
+        padding: 70px 66px 48px;
+      }
+      .shared-flow { grid-template-rows: repeat(3, 150px); gap: 62px; }
+      .branch-flow { grid-template-rows: repeat(4, 132px); gap: 42px; }
+      .footer-row { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: 34px; }
+    </style>
+  </head>
+  <body>
+    <main class="dg-canvas transformer-path" data-diagram-root data-width="1800" data-height="1060"
+      aria-label="Text becomes token embeddings and then splits into a parallel causal training path and a prefill plus cached decoding path">
+      <section class="dg-zone dg-zone-gray dg-stack shared-flow" data-title="Shared input path">
+        <div id="text" class="dg-node dg-node-gray">text<small>system + history + user input</small></div>
+        <div id="ids" class="dg-node dg-node-green">token IDs<small>[B, T]</small></div>
+        <div id="hidden" class="dg-node dg-node-green">embedding + position<small>X: [B, T, D]</small></div>
+      </section>
+
+      <section class="dg-zone dg-zone-blue dg-stack branch-flow" data-title="Training: all positions in parallel">
+        <div id="train-qkv" class="dg-node dg-node-blue">Q, K, V per head<small>[B, H, T, Dh]</small></div>
+        <div id="causal" class="dg-node dg-node-blue">causal attention<small>scores: [B, H, T, T]</small></div>
+        <div id="loss" class="dg-node dg-node-orange">next-token loss<small>targets shifted by one token</small></div>
+        <div id="backward" class="dg-node dg-node-orange">backward + AdamW<small>.grad -> m/v -> parameter update</small></div>
+      </section>
+
+      <section class="dg-zone dg-zone-yellow dg-stack branch-flow" data-title="Inference: prefill then decode">
+        <div id="prefill" class="dg-node dg-node-yellow">prefill prompt<small>parallel causal attention</small></div>
+        <div id="cache" class="dg-node dg-node-yellow">per-layer KV cache<small>L x (K, V), history grows with T</small></div>
+        <div id="decode" class="dg-node dg-node-green">one-token decode<small>Qnew reads cached K/V</small></div>
+        <div id="stream" class="dg-node dg-node-green">sample + stream token<small>token ID returns as next input</small></div>
+      </section>
+
+      <div class="dg-arrow" data-from="text" data-to="ids" data-route="v" data-label="tokenize" data-step="1"></div>
+      <div class="dg-arrow" data-from="ids" data-to="hidden" data-route="v" data-label="lookup" data-step="2"></div>
+      <div class="dg-arrow" data-from="train-qkv" data-to="causal" data-route="v" data-step="3"></div>
+      <div class="dg-arrow" data-from="causal" data-to="loss" data-route="v" data-step="4"></div>
+      <div class="dg-arrow" data-from="loss" data-to="backward" data-route="v" data-step="5"></div>
+      <div class="dg-arrow" data-from="prefill" data-to="cache" data-route="v" data-step="3"></div>
+      <div class="dg-arrow" data-from="cache" data-to="decode" data-route="v" data-step="4"></div>
+      <div class="dg-arrow" data-from="decode" data-to="stream" data-route="v"></div>
+
+      <div class="footer-row">
+        <p class="dg-note dg-note-flow">Q/K/V are runtime activations. Wq/Wk/Wv and the other model weights are trainable parameters.</p>
+        <p class="dg-note dg-note-flow">The causal rule is identical in both branches: a position may read itself and its past, never future tokens.</p>
+      </div>
+    </main>
+  </body>
+</html>

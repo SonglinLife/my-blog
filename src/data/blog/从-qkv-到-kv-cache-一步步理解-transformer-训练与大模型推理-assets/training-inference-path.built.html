@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-dg-done="1"><head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Transformer training and inference paths</title>
+    <style data-diagram-built="">
+/*! tailwindcss v4.2.2 | MIT License | https://tailwindcss.com */
+@layer properties;
+@layer theme, base, components, utilities;
+@layer theme {
+  :root, :host {
+    --font-sans: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji",
+      "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+      "Courier New", monospace;
+    --color-yellow-100: oklch(97.3% 0.071 103.193);
+    --color-yellow-600: oklch(68.1% 0.162 75.834);
+    --color-green-100: oklch(96.2% 0.044 156.743);
+    --color-green-500: oklch(72.3% 0.219 149.579);
+    --color-blue-100: oklch(93.2% 0.032 255.585);
+    --color-blue-400: oklch(70.7% 0.165 254.624);
+    --color-slate-200: oklch(92.9% 0.013 255.508);
+    --color-slate-400: oklch(70.4% 0.04 256.788);
+    --color-slate-800: oklch(27.9% 0.041 260.031);
+    --color-white: #fff;
+    --spacing: 0.25rem;
+    --font-weight-semibold: 600;
+    --font-weight-bold: 700;
+    --font-weight-extrabold: 800;
+    --radius-lg: 0.5rem;
+    --default-font-family: var(--font-sans);
+    --default-mono-font-family: var(--font-mono);
+    --color-diagram-bg: #fbfbf7;
+    --color-diagram-ink: #0f172a;
+    --color-diagram-muted: #334155;
+    --color-diagram-line: #cbd5e1;
+    --color-diagram-blue-bg: #dbeafe;
+    --color-diagram-blue: #2563eb;
+    --color-diagram-green-bg: #dcfce7;
+    --color-diagram-green: #16a34a;
+    --color-diagram-yellow-bg: #fef3c7;
+    --color-diagram-yellow: #d97706;
+    --color-diagram-orange-bg: #ffedd5;
+    --color-diagram-orange: #ea580c;
+    --color-diagram-gray-bg: #f8fafc;
+    --color-diagram-gray: #64748b;
+  }
+}
+@layer base {
+  *, ::after, ::before, ::backdrop, ::file-selector-button {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    border: 0 solid;
+  }
+  html, :host {
+    line-height: 1.5;
+    -webkit-text-size-adjust: 100%;
+    tab-size: 4;
+    font-family: var(--default-font-family, ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji");
+    font-feature-settings: var(--default-font-feature-settings, normal);
+    font-variation-settings: var(--default-font-variation-settings, normal);
+    -webkit-tap-highlight-color: transparent;
+  }
+  hr {
+    height: 0;
+    color: inherit;
+    border-top-width: 1px;
+  }
+  abbr:where([title]) {
+    -webkit-text-decoration: underline dotted;
+    text-decoration: underline dotted;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-size: inherit;
+    font-weight: inherit;
+  }
+  a {
+    color: inherit;
+    -webkit-text-decoration: inherit;
+    text-decoration: inherit;
+  }
+  b, strong {
+    font-weight: bolder;
+  }
+  code, kbd, samp, pre {
+    font-family: var(--default-mono-font-family, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace);
+    font-feature-settings: var(--default-mono-font-feature-settings, normal);
+    font-variation-settings: var(--default-mono-font-variation-settings, normal);
+    font-size: 1em;
+  }
+  small {
+    font-size: 80%;
+  }
+  sub, sup {
+    font-size: 75%;
+    line-height: 0;
+    position: relative;
+    vertical-align: baseline;
+  }
+  sub {
+    bottom: -0.25em;
+  }
+  sup {
+    top: -0.5em;
+  }
+  table {
+    text-indent: 0;
+    border-color: inherit;
+    border-collapse: collapse;
+  }
+  :-moz-focusring {
+    outline: auto;
+  }
+  progress {
+    vertical-align: baseline;
+  }
+  summary {
+    display: list-item;
+  }
+  ol, ul, menu {
+    list-style: none;
+  }
+  img, svg, video, canvas, audio, iframe, embed, object {
+    display: block;
+    vertical-align: middle;
+  }
+  img, video {
+    max-width: 100%;
+    height: auto;
+  }
+  button, input, select, optgroup, textarea, ::file-selector-button {
+    font: inherit;
+    font-feature-settings: inherit;
+    font-variation-settings: inherit;
+    letter-spacing: inherit;
+    color: inherit;
+    border-radius: 0;
+    background-color: transparent;
+    opacity: 1;
+  }
+  :where(select:is([multiple], [size])) optgroup {
+    font-weight: bolder;
+  }
+  :where(select:is([multiple], [size])) optgroup option {
+    padding-inline-start: 20px;
+  }
+  ::file-selector-button {
+    margin-inline-end: 4px;
+  }
+  ::placeholder {
+    opacity: 1;
+  }
+  @supports (not (-webkit-appearance: -apple-pay-button))  or (contain-intrinsic-size: 1px) {
+    ::placeholder {
+      color: currentcolor;
+      @supports (color: color-mix(in lab, red, red)) {
+        color: color-mix(in oklab, currentcolor 50%, transparent);
+      }
+    }
+  }
+  textarea {
+    resize: vertical;
+  }
+  ::-webkit-search-decoration {
+    -webkit-appearance: none;
+  }
+  ::-webkit-date-and-time-value {
+    min-height: 1lh;
+    text-align: inherit;
+  }
+  ::-webkit-datetime-edit {
+    display: inline-flex;
+  }
+  ::-webkit-datetime-edit-fields-wrapper {
+    padding: 0;
+  }
+  ::-webkit-datetime-edit, ::-webkit-datetime-edit-year-field, ::-webkit-datetime-edit-month-field, ::-webkit-datetime-edit-day-field, ::-webkit-datetime-edit-hour-field, ::-webkit-datetime-edit-minute-field, ::-webkit-datetime-edit-second-field, ::-webkit-datetime-edit-millisecond-field, ::-webkit-datetime-edit-meridiem-field {
+    padding-block: 0;
+  }
+  ::-webkit-calendar-picker-indicator {
+    line-height: 1;
+  }
+  :-moz-ui-invalid {
+    box-shadow: none;
+  }
+  button, input:where([type="button"], [type="reset"], [type="submit"]), ::file-selector-button {
+    appearance: button;
+  }
+  ::-webkit-inner-spin-button, ::-webkit-outer-spin-button {
+    height: auto;
+  }
+  [hidden]:where(:not([hidden="until-found"])) {
+    display: none !important;
+  }
+}
+@layer utilities;
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+  body {
+    margin: calc(var(--spacing) * 0);
+    display: grid;
+    min-height: 100vh;
+    place-items: center;
+    background-color: var(--color-slate-200);
+    color: var(--color-diagram-ink);
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+}
+@layer components {
+  .dg-canvas {
+    position: relative;
+    display: grid;
+    overflow: hidden;
+    background-color: var(--color-diagram-bg);
+  }
+  .dg-zone {
+    position: relative;
+    min-width: calc(var(--spacing) * 0);
+    border-radius: 10px;
+    border-style: var(--tw-border-style);
+    border-width: 2px;
+    border-color: var(--color-diagram-line);
+    background-color: color-mix(in srgb, #fff 35%, transparent);
+    @supports (color: color-mix(in lab, red, red)) {
+      background-color: color-mix(in oklab, var(--color-white) 35%, transparent);
+    }
+    padding-inline: calc(var(--spacing) * 7);
+    padding-top: 68px;
+    padding-bottom: calc(var(--spacing) * 7);
+  }
+  .dg-zone::before {
+    content: attr(data-title);
+    position: absolute;
+    top: calc(var(--spacing) * 5);
+    left: calc(var(--spacing) * 6);
+    font-size: 25px;
+    --tw-font-weight: var(--font-weight-bold);
+    font-weight: var(--font-weight-bold);
+    color: var(--color-diagram-ink);
+  }
+  .dg-zone-blue {
+    border-color: color-mix(in srgb, oklch(70.7% 0.165 254.624) 70%, transparent);
+    @supports (color: color-mix(in lab, red, red)) {
+      border-color: color-mix(in oklab, var(--color-blue-400) 70%, transparent);
+    }
+    background-color: color-mix(in srgb, oklch(93.2% 0.032 255.585) 45%, transparent);
+    @supports (color: color-mix(in lab, red, red)) {
+      background-color: color-mix(in oklab, var(--color-blue-100) 45%, transparent);
+    }
+  }
+  .dg-zone-green {
+    border-color: color-mix(in srgb, oklch(72.3% 0.219 149.579) 60%, transparent);
+    @supports (color: color-mix(in lab, red, red)) {
+      border-color: color-mix(in oklab, var(--color-green-500) 60%, transparent);
+    }
+    background-color: color-mix(in srgb, oklch(96.2% 0.044 156.743) 45%, transparent);
+    @supports (color: color-mix(in lab, red, red)) {
+      background-color: color-mix(in oklab, var(--color-green-100) 45%, transparent);
+    }
+  }
+  .dg-zone-yellow {
+    border-color: color-mix(in srgb, oklch(68.1% 0.162 75.834) 55%, transparent);
+    @supports (color: color-mix(in lab, red, red)) {
+      border-color: color-mix(in oklab, var(--color-yellow-600) 55%, transparent);
+    }
+    background-color: color-mix(in srgb, oklch(97.3% 0.071 103.193) 50%, transparent);
+    @supports (color: color-mix(in lab, red, red)) {
+      background-color: color-mix(in oklab, var(--color-yellow-100) 50%, transparent);
+    }
+  }
+  .dg-stack {
+    display: grid;
+    align-content: flex-start;
+    gap: 30px;
+  }
+  .dg-node {
+    display: grid;
+    min-height: 92px;
+    width: 100%;
+    max-width: 100%;
+    min-width: calc(var(--spacing) * 0);
+    place-items: center;
+    border-radius: var(--radius-lg);
+    border-style: var(--tw-border-style);
+    border-width: 3px;
+    border-color: var(--color-diagram-line);
+    padding-inline: calc(var(--spacing) * 5);
+    padding-block: 18px;
+    text-align: center;
+    font-size: 23px;
+    --tw-leading: 1.16;
+    line-height: 1.16;
+    --tw-font-weight: var(--font-weight-bold);
+    font-weight: var(--font-weight-bold);
+    color: var(--color-diagram-ink);
+    word-break: normal;
+    overflow-wrap: normal;
+  }
+  .dg-node small {
+    margin-top: calc(var(--spacing) * 2);
+    display: block;
+    font-size: 18px;
+    --tw-leading: 1.18;
+    line-height: 1.18;
+    --tw-font-weight: var(--font-weight-semibold);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-diagram-muted);
+  }
+  .dg-node-blue {
+    border-color: var(--color-diagram-blue);
+    background-color: var(--color-diagram-blue-bg);
+  }
+  .dg-node-green {
+    border-color: var(--color-diagram-green);
+    background-color: var(--color-diagram-green-bg);
+  }
+  .dg-node-yellow {
+    border-color: var(--color-diagram-yellow);
+    background-color: var(--color-diagram-yellow-bg);
+  }
+  .dg-node-orange {
+    border-color: var(--color-diagram-orange);
+    background-color: var(--color-diagram-orange-bg);
+  }
+  .dg-node-gray {
+    border-color: var(--color-slate-400);
+    background-color: var(--color-white);
+  }
+  .dg-node-compact {
+    min-height: 78px;
+    padding-inline: calc(var(--spacing) * 2.5);
+    padding-block: calc(var(--spacing) * 3);
+    font-size: 18px;
+  }
+  .dg-node-compact small {
+    margin-top: calc(var(--spacing) * 1);
+    font-size: 15px;
+    --tw-leading: 1.2;
+    line-height: 1.2;
+  }
+  .dg-node-source {
+    font-size: 19px;
+  }
+  .dg-node-source small {
+    font-size: 17px;
+  }
+  .dg-node-wide {
+    grid-column: 1 / -1;
+  }
+  .dg-pool {
+    position: relative;
+    min-width: calc(var(--spacing) * 0);
+    border-radius: 10px;
+    border-style: var(--tw-border-style);
+    border-width: 2px;
+    border-color: var(--color-diagram-line);
+    padding-inline: calc(var(--spacing) * 6);
+    padding-top: calc(var(--spacing) * 28);
+    padding-bottom: 26px;
+  }
+  .dg-pool::before {
+    content: attr(data-title);
+    white-space: pre-line;
+    position: absolute;
+    top: 22px;
+    left: 22px;
+    font-size: 20px;
+    --tw-leading: 1.25;
+    line-height: 1.25;
+    --tw-font-weight: var(--font-weight-bold);
+    font-weight: var(--font-weight-bold);
+    color: var(--color-diagram-ink);
+  }
+  .dg-pool-blue {
+    border-color: color-mix(in srgb, oklch(70.7% 0.165 254.624) 70%, transparent);
+    @supports (color: color-mix(in lab, red, red)) {
+      border-color: color-mix(in oklab, var(--color-blue-400) 70%, transparent);
+    }
+    background-color: color-mix(in srgb, oklch(93.2% 0.032 255.585) 35%, transparent);
+    @supports (color: color-mix(in lab, red, red)) {
+      background-color: color-mix(in oklab, var(--color-blue-100) 35%, transparent);
+    }
+  }
+  .dg-pool-yellow {
+    border-color: color-mix(in srgb, oklch(68.1% 0.162 75.834) 55%, transparent);
+    @supports (color: color-mix(in lab, red, red)) {
+      border-color: color-mix(in oklab, var(--color-yellow-600) 55%, transparent);
+    }
+    background-color: color-mix(in srgb, oklch(97.3% 0.071 103.193) 45%, transparent);
+    @supports (color: color-mix(in lab, red, red)) {
+      background-color: color-mix(in oklab, var(--color-yellow-100) 45%, transparent);
+    }
+  }
+  .dg-step {
+    position: absolute;
+    z-index: 4;
+    display: grid;
+    width: 30px;
+    height: 30px;
+    place-items: center;
+    border-radius: calc(infinity * 1px);
+    border-style: var(--tw-border-style);
+    border-width: 3px;
+    border-color: var(--color-white);
+    background-color: var(--color-diagram-blue);
+    font-size: 17px;
+    --tw-font-weight: var(--font-weight-extrabold);
+    font-weight: var(--font-weight-extrabold);
+    color: var(--color-white);
+  }
+  .dg-step-muted {
+    background-color: var(--color-diagram-gray);
+  }
+  .dg-arrow {
+    display: none;
+  }
+  .dg-label {
+    position: absolute;
+    z-index: 3;
+    display: inline-flex;
+    align-items: center;
+    gap: calc(var(--spacing) * 2);
+    border-radius: 5px;
+    background-color: color-mix(in srgb, #fbfbf7 95%, transparent);
+    @supports (color: color-mix(in lab, red, red)) {
+      background-color: color-mix(in oklab, var(--color-diagram-bg) 95%, transparent);
+    }
+    padding-inline: calc(var(--spacing) * 2);
+    padding-block: calc(var(--spacing) * 1);
+    font-size: 19px;
+    --tw-leading: 1;
+    line-height: 1;
+    --tw-font-weight: var(--font-weight-bold);
+    font-weight: var(--font-weight-bold);
+    white-space: nowrap;
+    color: var(--color-slate-800);
+  }
+  .dg-label-step {
+    display: grid;
+    width: 26px;
+    height: 26px;
+    flex-shrink: 0;
+    place-items: center;
+    border-radius: calc(infinity * 1px);
+    background-color: var(--color-diagram-blue);
+    font-size: 15px;
+    --tw-leading: 1;
+    line-height: 1;
+    --tw-font-weight: var(--font-weight-extrabold);
+    font-weight: var(--font-weight-extrabold);
+    color: var(--color-white);
+  }
+  .dg-note {
+    position: absolute;
+    border-radius: var(--radius-lg);
+    border-style: var(--tw-border-style);
+    border-width: 2px;
+    border-color: var(--color-diagram-line);
+    background-color: var(--color-diagram-gray-bg);
+    padding-inline: calc(var(--spacing) * 5);
+    padding-block: calc(var(--spacing) * 4);
+    font-size: 20px;
+    --tw-leading: 1.3;
+    line-height: 1.3;
+    color: var(--color-diagram-muted);
+  }
+  .dg-note-flow {
+    position: static;
+  }
+  .dg-legend {
+    position: absolute;
+    display: flex;
+    align-items: center;
+    gap: 42px;
+    font-size: 18px;
+    --tw-font-weight: var(--font-weight-bold);
+    font-weight: var(--font-weight-bold);
+    color: var(--color-diagram-muted);
+  }
+  .dg-legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: calc(var(--spacing) * 2.5);
+  }
+  .dg-swatch {
+    height: 18px;
+    width: calc(var(--spacing) * 7);
+    border-radius: 0.25rem;
+    border-style: var(--tw-border-style);
+    border-width: 2px;
+  }
+  .dg-swatch-blue {
+    border-color: var(--color-diagram-blue);
+    background-color: var(--color-diagram-blue-bg);
+  }
+  .dg-swatch-green {
+    border-color: var(--color-diagram-green);
+    background-color: var(--color-diagram-green-bg);
+  }
+  .dg-swatch-yellow {
+    border-color: var(--color-diagram-yellow);
+    background-color: var(--color-diagram-yellow-bg);
+  }
+  .dg-swatch-orange {
+    border-color: var(--color-diagram-orange);
+    background-color: var(--color-diagram-orange-bg);
+  }
+  .dg-arrows {
+    pointer-events: none;
+    position: absolute;
+    inset: calc(var(--spacing) * 0);
+    z-index: 2;
+  }
+}
+.transformer-path {
+  width: 1800px;
+  height: 1060px;
+  grid-template-columns: 390px 610px 610px;
+  grid-template-rows: 1fr 96px;
+  gap: 42px 52px;
+  padding: 70px 66px 48px;
+}
+.shared-flow {
+  grid-template-rows: repeat(3, 150px);
+  gap: 62px;
+}
+.branch-flow {
+  grid-template-rows: repeat(4, 132px);
+  gap: 42px;
+}
+.footer-row {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 34px;
+}
+@property --tw-border-style {
+  syntax: "*";
+  inherits: false;
+  initial-value: solid;
+}
+@property --tw-font-weight {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-leading {
+  syntax: "*";
+  inherits: false;
+}
+@layer properties {
+  @supports ((-webkit-hyphens: none) and (not (margin-trim: inline))) or ((-moz-orient: inline) and (not (color:rgb(from red r g b)))) {
+    *, ::before, ::after, ::backdrop {
+      --tw-border-style: solid;
+      --tw-font-weight: initial;
+      --tw-leading: initial;
+    }
+  }
+}
+
+</style>
+  </head>
+  <body>
+    <main class="dg-canvas transformer-path" data-diagram-root="" data-width="1800" data-height="1060" aria-label="Text becomes token embeddings and then splits into a parallel causal training path and a prefill plus cached decoding path">
+      <section class="dg-zone dg-zone-gray dg-stack shared-flow" data-title="Shared input path">
+        <div id="text" class="dg-node dg-node-gray">text<small>system + history + user input</small></div>
+        <div id="ids" class="dg-node dg-node-green">token IDs<small>[B, T]</small></div>
+        <div id="hidden" class="dg-node dg-node-green">embedding + position<small>X: [B, T, D]</small></div>
+      </section>
+
+      <section class="dg-zone dg-zone-blue dg-stack branch-flow" data-title="Training: all positions in parallel">
+        <div id="train-qkv" class="dg-node dg-node-blue">Q, K, V per head<small>[B, H, T, Dh]</small></div>
+        <div id="causal" class="dg-node dg-node-blue">causal attention<small>scores: [B, H, T, T]</small></div>
+        <div id="loss" class="dg-node dg-node-orange">next-token loss<small>targets shifted by one token</small></div>
+        <div id="backward" class="dg-node dg-node-orange">backward + AdamW<small>.grad -&gt; m/v -&gt; parameter update</small></div>
+      </section>
+
+      <section class="dg-zone dg-zone-yellow dg-stack branch-flow" data-title="Inference: prefill then decode">
+        <div id="prefill" class="dg-node dg-node-yellow">prefill prompt<small>parallel causal attention</small></div>
+        <div id="cache" class="dg-node dg-node-yellow">per-layer KV cache<small>L x (K, V), history grows with T</small></div>
+        <div id="decode" class="dg-node dg-node-green">one-token decode<small>Qnew reads cached K/V</small></div>
+        <div id="stream" class="dg-node dg-node-green">sample + stream token<small>token ID returns as next input</small></div>
+      </section>
+
+      <div class="dg-arrow" data-from="text" data-to="ids" data-route="v" data-label="tokenize" data-step="1"></div>
+      <div class="dg-arrow" data-from="ids" data-to="hidden" data-route="v" data-label="lookup" data-step="2"></div>
+      <div class="dg-arrow" data-from="train-qkv" data-to="causal" data-route="v" data-step="3"></div>
+      <div class="dg-arrow" data-from="causal" data-to="loss" data-route="v" data-step="4"></div>
+      <div class="dg-arrow" data-from="loss" data-to="backward" data-route="v" data-step="5"></div>
+      <div class="dg-arrow" data-from="prefill" data-to="cache" data-route="v" data-step="3"></div>
+      <div class="dg-arrow" data-from="cache" data-to="decode" data-route="v" data-step="4"></div>
+      <div class="dg-arrow" data-from="decode" data-to="stream" data-route="v"></div>
+
+      <div class="footer-row">
+        <p class="dg-note dg-note-flow">Q/K/V are runtime activations. Wq/Wk/Wv and the other model weights are trainable parameters.</p>
+        <p class="dg-note dg-note-flow">The causal rule is identical in both branches: a position may read itself and its past, never future tokens.</p>
+      </div>
+    <svg class="dg-arrows" viewBox="0 0 1800 1060" aria-hidden="true" data-dg-generated="arrows"><defs><marker id="dg-head" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="9" markerHeight="9" orient="auto"><path d="M 1.5 1.5 L 8.5 5 L 1.5 8.5 Z" fill="#2563eb"></path></marker><marker id="dg-head-muted" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="9" markerHeight="9" orient="auto"><path d="M 1.5 1.5 L 8.5 5 L 1.5 8.5 Z" fill="#94a3b8"></path></marker></defs><path d="M 261 296 L 261 343" fill="none" stroke="#2563eb" stroke-width="2.5" marker-end="url(#dg-head)" data-dg-arrow="text-&gt;ids"></path><path d="M 261 508 L 261 555" fill="none" stroke="#2563eb" stroke-width="2.5" marker-end="url(#dg-head)" data-dg-arrow="ids-&gt;hidden"></path><path d="M 813 278 L 813 305" fill="none" stroke="#2563eb" stroke-width="2.5" marker-end="url(#dg-head)" data-dg-arrow="train-qkv-&gt;causal"></path><path d="M 813 452 L 813 479" fill="none" stroke="#2563eb" stroke-width="2.5" marker-end="url(#dg-head)" data-dg-arrow="causal-&gt;loss"></path><path d="M 813 626 L 813 653" fill="none" stroke="#2563eb" stroke-width="2.5" marker-end="url(#dg-head)" data-dg-arrow="loss-&gt;backward"></path><path d="M 1475 278 L 1475 305" fill="none" stroke="#2563eb" stroke-width="2.5" marker-end="url(#dg-head)" data-dg-arrow="prefill-&gt;cache"></path><path d="M 1475 452 L 1475 479" fill="none" stroke="#2563eb" stroke-width="2.5" marker-end="url(#dg-head)" data-dg-arrow="cache-&gt;decode"></path><path d="M 1475 626 L 1475 653" fill="none" stroke="#2563eb" stroke-width="2.5" marker-end="url(#dg-head)" data-dg-arrow="decode-&gt;stream"></path></svg><span class="dg-label" data-dg-generated="label" style="left: 181.6px; top: 302.5px;"><span class="dg-label-step">1</span>tokenize</span><span class="dg-label" data-dg-generated="label" style="left: 189.2px; top: 514.5px;"><span class="dg-label-step">2</span>lookup</span><span class="dg-label" data-dg-generated="label" style="left: 776px; top: 274.5px;"><span class="dg-label-step">3</span></span><span class="dg-label" data-dg-generated="label" style="left: 776px; top: 448.5px;"><span class="dg-label-step">4</span></span><span class="dg-label" data-dg-generated="label" style="left: 776px; top: 622.5px;"><span class="dg-label-step">5</span></span><span class="dg-label" data-dg-generated="label" style="left: 1438px; top: 274.5px;"><span class="dg-label-step">3</span></span><span class="dg-label" data-dg-generated="label" style="left: 1438px; top: 448.5px;"><span class="dg-label-step">4</span></span></main>
+  </body></html>
