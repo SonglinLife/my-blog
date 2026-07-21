@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Tiny MoE block dispatch and combine path</title>
+    <link
+      rel="stylesheet"
+      href="../../../../.agents/skills/blog-architecture-diagrams/assets/diagram-kit.css"
+      data-diagram-kit
+    />
+    <style data-diagram-css>
+      .tiny-moe-diagram {
+        width: 1800px;
+        height: 1020px;
+        grid-template-columns: 380px 440px 1fr;
+        grid-template-rows: 650px 230px;
+        gap: 42px 48px;
+        padding: 70px 70px 48px;
+      }
+
+      .expert-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 24px;
+      }
+
+      .combine-zone {
+        grid-column: 1 / -1;
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 44px;
+        align-items: center;
+      }
+
+      .combine-weighted {
+        grid-column: 3;
+        grid-row: 1;
+      }
+
+      .combine-index-add {
+        grid-column: 2;
+        grid-row: 1;
+      }
+
+      .combine-output {
+        grid-column: 1;
+        grid-row: 1;
+      }
+
+    </style>
+  </head>
+  <body>
+    <main
+      class="dg-canvas tiny-moe-diagram"
+      data-diagram-root
+      data-width="1800"
+      data-height="1020"
+      aria-label="一个 token hidden tensor 在 Transformer block 中经过 Attention、Top-2 Router、四个 SwiGLU experts，再按原 token 位置加权合并回 residual stream"
+    >
+      <section class="dg-zone dg-zone-blue dg-stack" data-title="共享的 Transformer 路径">
+        <div id="block-input" class="dg-node dg-node-blue">
+          Layer 输入 X
+          <small>[B, T, D]</small>
+        </div>
+        <div id="attention" class="dg-node dg-node-blue">
+          Norm → Self-Attention → Residual
+          <small>R: [B, T, D]</small>
+        </div>
+        <div id="flatten" class="dg-node dg-node-gray">
+          Norm + flatten tokens
+          <small>[B, T, D] → [N, D], N=B×T</small>
+        </div>
+      </section>
+
+      <section class="dg-zone dg-zone-green dg-stack" data-title="Router：每层独立">
+        <div id="router" class="dg-node dg-node-green">
+          Linear + softmax
+          <small>logits / probs: [N, E]</small>
+        </div>
+        <div id="topk" class="dg-node dg-node-green">
+          Top-K + renormalize
+          <small>indices / weights: [N, K]</small>
+        </div>
+        <div class="dg-node dg-node-gray dg-node-source">
+          本实验：E=4, K=2
+          <small>每个 token 只执行两个 experts</small>
+        </div>
+      </section>
+
+      <section id="expert-pool" class="dg-zone dg-zone-yellow" data-title="SwiGLU expert pool：只执行收到 token 的子批次">
+        <div class="expert-grid">
+          <div class="dg-node dg-node-yellow">
+            Expert 0
+            <small>[n₀,D] → [n₀,F] → [n₀,D]</small>
+          </div>
+          <div class="dg-node dg-node-yellow">
+            Expert 1
+            <small>[n₁,D] → [n₁,F] → [n₁,D]</small>
+          </div>
+          <div class="dg-node dg-node-yellow">
+            Expert 2
+            <small>[n₂,D] → [n₂,F] → [n₂,D]</small>
+          </div>
+          <div class="dg-node dg-node-yellow">
+            Expert 3
+            <small>[n₃,D] → [n₃,F] → [n₃,D]</small>
+          </div>
+          <div class="dg-node dg-node-orange dg-node-wide">
+            Dispatch 依据 topk_indices
+            <small>同一 token 会出现在 K 个 expert 子批次中</small>
+          </div>
+        </div>
+      </section>
+
+      <section class="dg-zone dg-zone-gray combine-zone" data-title="Combine：恢复 token 原顺序与 residual shape">
+        <div id="weighted-output" class="dg-node dg-node-yellow combine-weighted">
+          expert_output × route weight
+          <small>每条 route: [D]</small>
+        </div>
+        <div id="index-add" class="dg-node dg-node-green combine-index-add">
+          index_add(dim=0)
+          <small>同一 token 的 K 路贡献相加 → [N,D]</small>
+        </div>
+        <div id="block-output" class="dg-node dg-node-blue combine-output">
+          reshape + Residual add
+          <small>R + MoE(Norm(R)) → [B,T,D]</small>
+        </div>
+      </section>
+
+      <div class="dg-arrow" data-from="block-input" data-to="attention" data-route="v"></div>
+      <div class="dg-arrow" data-from="attention" data-to="flatten" data-route="v"></div>
+      <div class="dg-arrow" data-from="flatten" data-to="router" data-route="h"></div>
+      <div class="dg-arrow" data-from="router" data-to="topk" data-route="v"></div>
+      <div class="dg-arrow" data-from="topk" data-to="expert-pool" data-route="h"></div>
+      <div class="dg-arrow" data-from="expert-pool" data-to="weighted-output" data-route="v"></div>
+      <div class="dg-arrow" data-from="weighted-output" data-to="index-add" data-route="h" data-exit="left" data-enter="right"></div>
+      <div class="dg-arrow" data-from="index-add" data-to="block-output" data-route="h" data-exit="left" data-enter="right"></div>
+
+    </main>
+  </body>
+</html>
